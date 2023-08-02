@@ -31,8 +31,12 @@ async function request(
 
     return response;
   } catch (error) {
-    if(fError !== undefined) fError();
-    else ToastAndroid.show("Untreated error..." + error, ToastAndroid.SHORT);
+    if(fError !== undefined){
+      fError();
+    }
+    else {
+      ToastAndroid.show("Untreated error..." + error, ToastAndroid.SHORT);
+    }
     return undefined;
   }
 }

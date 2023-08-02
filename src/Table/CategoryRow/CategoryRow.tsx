@@ -26,8 +26,6 @@ interface States{
 }
 
 class CategoryRow extends React.Component<Props, States>{
-  inputRef: RefObject<TextInput> = React.createRef();
-
   constructor(props: Props){
     super(props);
     this.state = {
@@ -44,7 +42,7 @@ class CategoryRow extends React.Component<Props, States>{
   async componentDidMount(): Promise<void> {
     const newItems: Item[]|undefined = await storage.readItemsOnCategory(this.props.category.id);
     if(newItems !== undefined) {
-      this.setState({ items: newItems});
+      this.setState({ items: newItems });
     }
   }
 
@@ -75,13 +73,6 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   textPress = () => {
-    const { category } = this.props;
-
-    setTimeout(() => {
-      this.inputRef.current?.focus();
-      this.inputRef.current?.setNativeProps({text: category.text });
-    }, 100);
-
     if(!this.state.isEditing) {
       this.setState({
         isEditing: true
@@ -131,13 +122,14 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   cancelEdit = () => {
-    this.setState({isEditing: false});
+    this.setState({isEditing: false, textValue: this.props.category.text });
   }
 
   render(): React.ReactNode {
     const { category, itemsShown } = this.props;
-    const { items, isEditing } = this.state;
+    const { items, isEditing, textValue } = this.state;
 
+    //TODO improve
     const categoryItems: Item[] = items.filter((item) => {return item.myCategory === category.id});
     const displayItems: Item[] = categoryItems.filter((item) => {return (this.shoudShowItem(item))});
     const shouldDisplay: boolean = categoryItems.length == 0 || (categoryItems.length > 0 && displayItems.length > 0);
@@ -161,7 +153,7 @@ class CategoryRow extends React.Component<Props, States>{
               </Pressable>)
           }
           {isEditing?
-            <TextInput style={styles.categoryTextInput} ref={this.inputRef} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
+            <TextInput style={styles.categoryTextInput} value={textValue} autoFocus={true} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
             :
             <Pressable style={styles.pressableRowText} onPress={this.textPress}>
               <Text style={styles.rowText}>{category.text}</Text>

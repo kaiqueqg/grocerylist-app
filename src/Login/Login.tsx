@@ -1,6 +1,6 @@
 import React from "react";
 import { ToastAndroid } from "react-native";
-import { StyleSheet, Alert, Button, TextInput, View, Pressable , Text } from "react-native";
+import { StyleSheet, Alert, Button, TextInput, View, Pressable, Text, Image} from "react-native";
 import Toast from "react-native-toast-message";
 import colors from "../Colors";
 import Loading from "../Loading/Loading";
@@ -15,6 +15,7 @@ interface Props{
 
 interface States{
   baseUrl: string,
+  isEditingBaseUrl: boolean,
   username: string,
   password: string,
   isLogging: boolean,
@@ -27,6 +28,7 @@ class Login extends React.Component<Props, States>{
 
     this.state = {
       baseUrl: this.props.baseUrl,
+      isEditingBaseUrl: false,
       username: '',
       password: '',
       isLogging: false,
@@ -73,13 +75,18 @@ class Login extends React.Component<Props, States>{
     });
   }
 
-  handleBaseUrlEnter = async () => {
+  baseUrlDone = async () => {
     try {
       await storage.writeBaseUrl(this.state.baseUrl);
-      
+
+      this.setState({ isEditingBaseUrl: false });
     } catch (err) {
       ToastAndroid.show("Error saving api url!", ToastAndroid.SHORT);
     }
+  }
+
+  baseUrlCancel = () => {
+    this.setState({ isEditingBaseUrl: false, baseUrl: this.props.baseUrl });
   }
 
   login = () => {
@@ -104,7 +111,7 @@ class Login extends React.Component<Props, States>{
       this.setState({ isLogging: true })
       try {
         const response = await request(this.state.baseUrl + '/Login', 'POST', JSON.stringify(user), async () => {
-          const isUpResponse = await request(this.state.baseUrl + '/IsUp', 'GET');
+          const isUpResponse = await request(this.state.baseUrl + '/IsUp', 'GET', undefined, () => {});
 
           if(isUpResponse !== undefined && isUpResponse.ok){
             ToastAndroid.show("Server is up but login doesn't!", ToastAndroid.SHORT);
@@ -140,8 +147,12 @@ class Login extends React.Component<Props, States>{
     this.setState({ isLogged: false });
   }
 
+  baseUrlEdit = () => {
+    this.setState({ isEditingBaseUrl: true });
+  }
+
   render(): React.ReactNode {
-    const { isLogged } = this.state;
+    const { isLogged, baseUrl, isEditingBaseUrl } = this.state;
 
     return(
       <View style={styles.loggingContainer}>
@@ -154,7 +165,24 @@ class Login extends React.Component<Props, States>{
           <Text style={styles.grocerylistText}>
             GROCERY LIST
           </Text>
-          <TextInput placeholder={this.props.baseUrl} placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} onChangeText={this.handleBaseUrlChange} onSubmitEditing={this.handleBaseUrlEnter}></TextInput>
+          {isEditingBaseUrl?
+            <View style={styles.baseUrlTextInputContainer}>
+              <TextInput style={styles.baseUrlTextInput} value={this.state.baseUrl} placeholder={this.props.baseUrl} placeholderTextColor={colors.placeholderTextColor} onChangeText={this.handleBaseUrlChange} onSubmitEditing={this.handleBaseUrlEnter}></TextInput>
+              <Pressable style={styles.baseUrlDoneCancelButton} onPress={this.baseUrlDone}>
+                <Image style={styles.baseUrlDoneCancelImage} source={require('../../public/images/done.png')}></Image>
+              </Pressable>
+              <Pressable style={styles.baseUrlDoneCancelButton} onPress={this.baseUrlCancel}>
+                <Image style={styles.baseUrlDoneCancelImage} source={require('../../public/images/cancel.png')}></Image>
+              </Pressable>
+            </View>
+            :
+            <View style={styles.baseUrlTextInputContainer}>
+              <Text style={styles.baseUrlText}>{baseUrl}</Text>
+              <Pressable style={styles.baseUrlEditButton} onPress={this.baseUrlEdit}>
+                <Image style={styles.baseUrlEditImage} source={require('../../public/images/edit.png')}></Image>
+              </Pressable>
+            </View>
+          }
           <TextInput placeholder="Username" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} onChangeText={this.handleUsernameChange}></TextInput>
           <TextInput placeholder="Password" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
           <Pressable style={styles.loginButton} onPress={this.login}>
@@ -180,6 +208,54 @@ const styles = StyleSheet.create({
     width: '90%',
     color: colors.beige,
     textAlign: 'center',
+  },
+  baseUrlText: {
+    width: '85%',
+    color: colors.beige,
+    padding: 10,
+  },
+  baseUrlTextInputContainer:{
+    flexDirection: 'row',
+    width: '90%',
+    margin: 10,
+    color: colors.beige,
+    // borderStyle: 'solid',
+    // borderWidth: 1,
+    // borderColor: 'grey',
+    // borderRadius: 2,
+  },
+  baseUrlTextInput:{
+    width: '70%',
+    margin: 0,
+    padding: 10,
+    color: colors.beige,
+    backgroundColor: colors.blue,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: 'grey',
+    borderRadius: 2,
+  },
+  baseUrlDoneCancelImage: {
+    width: 10,
+    height: 10,
+  },
+  baseUrlEditImage:{
+    width: 20,
+    height: 20,
+  },
+  baseUrlEditButton:{
+    borderRadius: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '15%',
+    padding: 10,
+  },
+  baseUrlDoneCancelButton: {
+    borderRadius: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '15%',
+    padding: 10,
   },
   usernamepassword: {
     width: '90%',

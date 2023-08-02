@@ -7,6 +7,7 @@ import { Text, StyleSheet, Image, View, Pressable, TextInput, NativeSyntheticEve
 import colors from '../../Colors';
 import storage from '../../Storage/Storage';
 import { KeyValuePair } from '@react-native-async-storage/async-storage/lib/typescript/types';
+import { ToastAndroid } from 'react-native';
 
 interface Props{
   item: Item,
@@ -21,8 +22,6 @@ interface States{
 }
 
 class ItemRow extends React.Component<Props,States>{
-  inputRef: RefObject<TextInput> = React.createRef();
-
   constructor(props: Props){
     super(props);
 
@@ -57,8 +56,6 @@ class ItemRow extends React.Component<Props,States>{
   }
 
   textPress = () => {
-    setTimeout(() => this.inputRef.current?.focus(), 100);
-
     if(!this.state.isEditing) {
       this.setState({
         isEditing: true
@@ -100,12 +97,12 @@ class ItemRow extends React.Component<Props,States>{
   }
 
   cancelEdit = () => {
-    this.setState({isEditing: false});
+    this.setState({isEditing: false, textValue: this.props.item.text});
   }
 
   render(): React.ReactNode {
     const { isPair, item } = this.props;
-    const {  isEditing } = this.state;
+    const {  isEditing, textValue } = this.state;
 
     return(
         <View style={isPair? [styles.itemRowContainer, {backgroundColor: colors.bluedark}] : [styles.itemRowContainer, {backgroundColor: colors.blue}]}>
@@ -114,7 +111,7 @@ class ItemRow extends React.Component<Props,States>{
             <Pressable onPress={this.deleteItem}>
               <Image style={styles.checkedUncheckedImage} source={require('../../../public/images/trash.png')}/>
             </Pressable>
-            <TextInput style={styles.itemTextInput} ref={this.inputRef} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
+            <TextInput style={styles.itemTextInput} value={textValue} autoFocus={true} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
             <Pressable onPress={this.cancelEdit}>
               <Image style={[styles.checkedUncheckedImage, {tintColor: colors.red}]} source={require('../../../public/images/cancel.png')}/>
             </Pressable>
