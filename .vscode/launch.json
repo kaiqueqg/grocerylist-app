@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Expo Android",
+      "type": "reactnative",
+      "request": "attach",
+      "platform": "android",
+      "port": 19000
+    },
+    {
+      "name": "Debug Expo iOS",
+      "type": "reactnative",
+      "request": "attach",
+      "platform": "ios",
+      "port": 19000
+    }
+  ]
+}
