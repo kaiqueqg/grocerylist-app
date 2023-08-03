@@ -1,17 +1,13 @@
-import React, { RefObject } from 'react';
+import React from 'react';
 import { Item } from '../../Types';
-import request from '../../Requests/RequestFactory'
-import Toast from 'react-native-toast-message';
-import Loading from '../../Loading/Loading';
-import { Text, StyleSheet, Image, View, Pressable, TextInput, NativeSyntheticEvent, TextInputKeyPressEventData, Alert } from 'react-native';
+import { Text, StyleSheet, Image, View, Pressable, TextInput } from 'react-native';
 import colors from '../../Colors';
 import storage from '../../Storage/Storage';
-import { KeyValuePair } from '@react-native-async-storage/async-storage/lib/typescript/types';
-import { ToastAndroid } from 'react-native';
+import log from '../../Log/Log';
 
 interface Props{
   item: Item,
-  updateItemsDisplay: () => Promise<void>, 
+  redrawCallback: () => void, 
   isPair: boolean,
   baseUrl: string,
 }
@@ -31,28 +27,16 @@ class ItemRow extends React.Component<Props,States>{
     }
   }
 
-  displayConfirmDeleteRow = () => {
-    //* for now, no confirmation
-    // toast.warning('Are you sure?', {
-    //   closeButton: <button className='btn btn-primary' onClick={this.deleteItem}>YES</button>,
-    //   autoClose: 5000,
-    //   draggable: false,
-    //   pauseOnHover: false,
-    // });
-
-    this.deleteItem();
-  }
-
   deleteItem = async () =>{
     await storage.deleteItem(this.props.item.id);
-    this.props.updateItemsDisplay();
+    this.props.redrawCallback();
   }
 
   changeIsChecked = async () => {
     const newItem: Item = { ...this.props.item, isChecked: !this.props.item.isChecked};
     
     await storage.updateItem(newItem);
-    this.props.updateItemsDisplay();
+    this.props.redrawCallback();
   }
 
   textPress = () => {
@@ -71,27 +55,20 @@ class ItemRow extends React.Component<Props,States>{
 
   textInputEnter = async () => {
     const { textValue } = this.state;
-
     const { item } = this.props;
-
-    let uniqueItem = true;
-    const allItems = await storage.readGroceryList();
-
-    if(allItems !== null){
-      for(let i = 0; i < allItems.items.length && uniqueItem; i++){
-        if(textValue === allItems.items[i].text) uniqueItem = false;
-      }
-    }
-
-    if(uniqueItem) {
+    
+    let uniqueItem: Item|undefined = await storage.getItemWithSameText(textValue, item.myCategory);
+    
+    if(uniqueItem === undefined) {
+      
       const newItem: Item = {...item, text: textValue};
       await storage.updateItem(newItem);
 
       this.setState({isEditing: false});
-      this.props.updateItemsDisplay();
+      this.props.redrawCallback();
     }
     else{
-      //TODO some warning
+      log.pop("There's another item with the same text");
       this.setState({isEditing: false});
     }
   }
@@ -112,6 +89,9 @@ class ItemRow extends React.Component<Props,States>{
               <Image style={styles.checkedUncheckedImage} source={require('../../../public/images/trash.png')}/>
             </Pressable>
             <TextInput style={styles.itemTextInput} value={textValue} autoFocus={true} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
+            <Pressable onPress={this.textInputEnter}>
+              <Image style={[styles.checkedUncheckedImage, {tintColor: colors.green}]} source={require('../../../public/images/done.png')}/>
+            </Pressable>
             <Pressable onPress={this.cancelEdit}>
               <Image style={[styles.checkedUncheckedImage, {tintColor: colors.red}]} source={require('../../../public/images/cancel.png')}/>
             </Pressable>

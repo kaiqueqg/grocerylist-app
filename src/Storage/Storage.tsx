@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert, ToastAndroid } from "react-native";
+import { Alert } from "react-native";
+import log from "../Log/Log";
 import { Category, GroceryList, Item, LoginModel } from "../Types";
 
 
@@ -16,22 +17,32 @@ const storage = {
   },
 
   async writeGroceryList(data: GroceryList){
-    await AsyncStorage.setItem('@grocerylistapp:data', JSON.stringify(data));
+    try {
+      await AsyncStorage.setItem('@grocerylistapp:data', JSON.stringify(data));
+    } catch (err) {
+      log.error('[writeGroceryList] catching writing grocery list.');
+      return null;
+    }
   },
   
   async readGroceryList(){
-    const data = await AsyncStorage.getItem('@grocerylistapp:data');
-  
-    if(data !== null){
-      try {
-        const parsedData: GroceryList = JSON.parse(data);
-        return parsedData;
-      } catch (err) {
-        Alert.alert('Error while getting the saved. (Parsing json)');
+    try {
+      const data = await AsyncStorage.getItem('@grocerylistapp:data');
+    
+      if(data !== null){
+        try {
+          const parsedData: GroceryList = JSON.parse(data);
+          return parsedData;
+        } catch (err) {
+          log.error('[readGroceryList] Error parsing json');
+        }
       }
+      log.dev('[readGroceryList] returning null')
+      return null;
+    } catch (err) {
+      log.error('[readGroceryList] catching reading grocery list.');
+      return null;
     }
-  
-    return null;
   },
 
   async readItemsOnCategory(id: string){
@@ -47,8 +58,15 @@ const storage = {
     }
   },
 
+  async getItemWithSameText(text: string, myCategory: string){
+    const data: GroceryList|null = await this.readGroceryList();
+
+    if(data !== null) return data.items.find((item: Item) => { return item.text === text && item.myCategory === myCategory });
+    return undefined;
+  },
+
   async insertItem(item: Item){
-    const data: GroceryList|null = await  this.readGroceryList();
+    const data: GroceryList|null = await this.readGroceryList();
 
     if(data !== null){
       let uniqueItem: Item[] = data.items.filter((i) => i.text === item.text && i.id != item.id && i.myCategory === item.myCategory);
@@ -58,11 +76,8 @@ const storage = {
         this.writeGroceryList(data);
       }
       else{
-        ToastAndroid.show('Item already exist!', ToastAndroid.SHORT);
+        log.pop('Item already exist!');
       }
-    }
-    else{
-      //TODO warn
     }
   },
 
@@ -77,11 +92,8 @@ const storage = {
         this.writeGroceryList(data);
       }
       else{
-        ToastAndroid.show('Category already exist!', ToastAndroid.SHORT);
+        log.pop('Category already exist!');
       }
-    }
-    else{
-      //TODO warn
     }
   },
 
@@ -103,7 +115,7 @@ const storage = {
         this.writeGroceryList({...data, categories: newData });
       }
       else{
-        ToastAndroid.show('Category already exist!', ToastAndroid.SHORT);
+        log.pop('Category already exist!');
       }
     }
   },
@@ -126,7 +138,7 @@ const storage = {
         this.writeGroceryList({...data, items: newData});
       }
       else{
-        ToastAndroid.show('Item already exist!', ToastAndroid.SHORT);
+        log.pop('Item already exist!');
       }
     }
   },
@@ -158,21 +170,27 @@ const storage = {
       const baseUrl = await AsyncStorage.getItem('@grocerylistapp:baseurl');
     
       if(baseUrl === null){
-        //TODO what to do here? popup error? set a default and return default?
-        return null;
+        log.dev('[readBaseUrl] no base url, setting default');
+        return 'http://localhost:5000/api';
       }
       else{
         const parsedBaseUrl: string = JSON.parse(baseUrl);
         return parsedBaseUrl;
       }
     } catch (err) {
-      //TODO error pop up?
-      return null
+      log.error('[readBaseUrl] catching reading base url.');
+      log.pop('Error reading base url.');
+      return 'http://localhost:5000/api';
     }
   },
   
   async writeJwtToken(token: string){
-    await AsyncStorage.setItem('@grocerylistapp:jwt', JSON.stringify(token));
+    try {
+      await AsyncStorage.setItem('@grocerylistapp:jwt', JSON.stringify(token));
+    } catch (err) {
+      log.error('[readJwtToken] catching writing jwt token.');
+      log.pop('Error getting saved login info.');
+    }
   },
   
   async readJwtToken(){
@@ -180,7 +198,6 @@ const storage = {
       const loginModelJson = await AsyncStorage.getItem('@grocerylistapp:jwt');
     
       if(loginModelJson === null){
-        //TODO what to do here? popup error? set a default and return default?
         return null;
       }
       else{
@@ -188,7 +205,7 @@ const storage = {
         return parsedLoginModel.token;
       }
     } catch (err) {
-      //TODO error pop up?
+      log.error('[readJwtToken] catching reading jwt token.');
       return null
     }
   },
@@ -197,7 +214,7 @@ const storage = {
     try {
       await AsyncStorage.removeItem('@grocerylistapp:jwt');
     } catch (error) {
-      //TODO some warning
+      log.error('[readJwtToken] catching deleting jwt token.');
     }
   },
 }

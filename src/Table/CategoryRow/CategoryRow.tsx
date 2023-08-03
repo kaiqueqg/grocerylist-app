@@ -1,15 +1,13 @@
-import React, { RefObject } from 'react';
+import React from 'react';
 import { Item, Category, ItemsShown } from '../../Types';
-import Toast from 'react-native-toast-message';
-import request from '../../Requests/RequestFactory'
 import ItemRow from '../ItemRow/ItemRow';
-import Loading from '../../Loading/Loading';
-import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput, ToastAndroid } from 'react-native';
+import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput } from 'react-native';
 import colors from '../../Colors';
 import storage from '../../Storage/Storage';
 
 interface Props{
   category: Category,
+  items: Item[],
   redrawCallback: () => void,
   baseUrl: string,
   itemsShown: ItemsShown
@@ -22,7 +20,6 @@ interface States{
   isSavingText: boolean,
   isCreatingNewItem: boolean,
   isRequestingItems: boolean,
-  items: Item[]
 }
 
 class CategoryRow extends React.Component<Props, States>{
@@ -35,26 +32,17 @@ class CategoryRow extends React.Component<Props, States>{
       isSavingText: false,
       isCreatingNewItem: false,
       isRequestingItems: false,
-      items: [],
     };
-  }
-
-  async componentDidMount(): Promise<void> {
-    const newItems: Item[]|undefined = await storage.readItemsOnCategory(this.props.category.id);
-    if(newItems !== undefined) {
-      this.setState({ items: newItems });
-    }
   }
 
   confirmDeleteCategory = () => {
     Alert.alert('', 'Do you really want to delete?', [
-      { text: 'YES', onPress: this.deleteCategory },
-      { text: 'NO', onPress: () => { this.setState({ isEditing: false});}}
+      { text: 'NO', onPress: () => { this.setState({ isEditing: false}) }},
+      { text: 'YES', onPress: this.deleteCategory }
     ]);
   }
 
   deleteCategory = async () => {
-    
     await storage.deleteCategory(this.props.category.id);
     this.props.redrawCallback();
   }
@@ -69,7 +57,7 @@ class CategoryRow extends React.Component<Props, States>{
     };
     await storage.insertItem(newItem);
 
-    this.updateItemsDisplay();
+    this.props.redrawCallback();
   }
 
   textPress = () => {
@@ -99,15 +87,15 @@ class CategoryRow extends React.Component<Props, States>{
     }
   }
 
-  updateItemsDisplay = async () => {
-    const { category } = this.props;
-    const newItems: Item[]|undefined = await storage.readItemsOnCategory(category.id === '' ? category.text: category.id);
-    if(newItems !== undefined) {
-      this.setState({
-        items: newItems
-      });
-    }
-  }
+  // updateItemsDisplay = async () => {
+  //   const { category } = this.props;
+  //   const newItems: Item[]|undefined = await storage.readItemsOnCategory(category.id === '' ? category.text: category.id);
+  //   if(newItems !== undefined) {
+  //     this.setState({
+  //       items: newItems
+  //     });
+  //   }
+  // }
 
   changeItemsDisplay = async () => {
     const newCategory: Category = { ...this.props.category, isOpen: !this.props.category.isOpen};
@@ -126,8 +114,8 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   render(): React.ReactNode {
-    const { category, itemsShown } = this.props;
-    const { items, isEditing, textValue } = this.state;
+    const { category, items, itemsShown } = this.props;
+    const { isEditing, textValue } = this.state;
 
     //TODO improve
     const categoryItems: Item[] = items.filter((item) => {return item.myCategory === category.id});
@@ -173,7 +161,7 @@ class CategoryRow extends React.Component<Props, States>{
             items.map((item: Item, index: number) => (
               item.myCategory === category.id && 
               this.shoudShowItem(item) &&
-              <ItemRow key={'item' + item.id} item={item} baseUrl={this.props.baseUrl} updateItemsDisplay={this.updateItemsDisplay} isPair={index % 2===0}></ItemRow>
+              <ItemRow key={'item' + item.id} item={item} baseUrl={this.props.baseUrl} redrawCallback={this.props.redrawCallback} isPair={index % 2===0}></ItemRow>
             )
           )
         }

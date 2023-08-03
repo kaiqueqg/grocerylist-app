@@ -1,9 +1,7 @@
 import React from "react";
-import { ToastAndroid } from "react-native";
-import { StyleSheet, Alert, Button, TextInput, View, Pressable, Text, Image} from "react-native";
-import Toast from "react-native-toast-message";
+import { StyleSheet, TextInput, View, Pressable, Text, Image} from "react-native";
 import colors from "../Colors";
-import Loading from "../Loading/Loading";
+import log from "../Log/Log";
 import request from '../Requests/RequestFactory';
 import storage from '../Storage/Storage';
 import { User } from "../Types";
@@ -81,7 +79,7 @@ class Login extends React.Component<Props, States>{
 
       this.setState({ isEditingBaseUrl: false });
     } catch (err) {
-      ToastAndroid.show("Error saving api url!", ToastAndroid.SHORT);
+      log.pop("Error saving api url!");
     }
   }
 
@@ -93,12 +91,12 @@ class Login extends React.Component<Props, States>{
     const { username, password } = this.state;
     
     if(username.trim() === ""){
-      ToastAndroid.show("Type username to login!", ToastAndroid.SHORT);
+      log.pop("Type username to login!");
       return;
     }
 
     if(password.trim() === ""){
-      ToastAndroid.show("Type password to login!", ToastAndroid.SHORT);
+      log.pop("Type password to login!");
       return;
     }
 
@@ -114,10 +112,10 @@ class Login extends React.Component<Props, States>{
           const isUpResponse = await request(this.state.baseUrl + '/IsUp', 'GET', undefined, () => {});
 
           if(isUpResponse !== undefined && isUpResponse.ok){
-            ToastAndroid.show("Server is up but login doesn't!", ToastAndroid.SHORT);
+            log.pop("Server is up but login doesn't!");
           }
           else{
-            ToastAndroid.show("Server is down!", ToastAndroid.SHORT);
+            log.pop("Server is down!");
           }
         });
         if(response !== undefined) {
@@ -130,7 +128,7 @@ class Login extends React.Component<Props, States>{
           }
         }
       } catch (error) {
-        Alert.alert('Error: ' + error);
+        log.error('[fetchData] Error: ' + error);
       }
       setTimeout(() => {
       this.setState({ isLogging: false });
@@ -140,7 +138,7 @@ class Login extends React.Component<Props, States>{
   }
 
   logout = async () => {
-    ToastAndroid.show('logout', ToastAndroid.SHORT);
+    log.pop('logout');
     await storage.deleteJwtToken();
     this.props.isLoggedCallback(false);
 
@@ -167,7 +165,7 @@ class Login extends React.Component<Props, States>{
           </Text>
           {isEditingBaseUrl?
             <View style={styles.baseUrlTextInputContainer}>
-              <TextInput style={styles.baseUrlTextInput} value={this.state.baseUrl} placeholder={this.props.baseUrl} placeholderTextColor={colors.placeholderTextColor} onChangeText={this.handleBaseUrlChange} onSubmitEditing={this.handleBaseUrlEnter}></TextInput>
+              <TextInput style={styles.baseUrlTextInput} value={this.state.baseUrl} placeholder={this.props.baseUrl} placeholderTextColor={colors.placeholderTextColor} onChangeText={this.handleBaseUrlChange} onSubmitEditing={this.baseUrlDone}></TextInput>
               <Pressable style={styles.baseUrlDoneCancelButton} onPress={this.baseUrlDone}>
                 <Image style={styles.baseUrlDoneCancelImage} source={require('../../public/images/done.png')}></Image>
               </Pressable>
@@ -219,10 +217,6 @@ const styles = StyleSheet.create({
     width: '90%',
     margin: 10,
     color: colors.beige,
-    // borderStyle: 'solid',
-    // borderWidth: 1,
-    // borderColor: 'grey',
-    // borderRadius: 2,
   },
   baseUrlTextInput:{
     width: '70%',

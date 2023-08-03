@@ -1,8 +1,6 @@
 import React from 'react';
-import { Alert, Button, StyleSheet, Text, View, StatusBar, Pressable, Image, ToastAndroid } from 'react-native';
+import { StyleSheet, View, StatusBar} from 'react-native';
 import Table from './src/Table/Table';
-import Login from './src/Login/Login';
-import Loading from './src/Loading/Loading';
 import colors from './src/Colors';
 import storage from './src/Storage/Storage';
 

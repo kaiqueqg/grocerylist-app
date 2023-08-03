@@ -1,12 +1,13 @@
 import React from 'react';
 import { GroceryList, Category, ItemsShown } from '../Types';
-import { StyleSheet, View, Text, Image, ScrollView, Pressable, RefreshControl, Alert, ToastAndroid } from 'react-native';
+import { StyleSheet, View, Text, Image, ScrollView, Pressable, } from 'react-native';
 import CategoryRow from './CategoryRow/CategoryRow';
 import request from '../Requests/RequestFactory';
 import colors from '../Colors';
 import storage from '../Storage/Storage';
 import Loading from '../Loading/Loading';
 import Login from '../Login/Login';
+import log from '../Log/Log';
 
 interface Props{
   baseUrl: string,
@@ -63,10 +64,6 @@ class Table extends React.Component<Props, States> {
     this.setState({isLoggingIn: !this.state.isLoggingIn});
   }
 
-  saveGroceryList = async () => {
-    await storage.writeGroceryList(this.state.data);
-  }
-
   uploadGroceryList = async () => {
     
     this.setState({
@@ -81,7 +78,9 @@ class Table extends React.Component<Props, States> {
       });
 
       if(response !== undefined && response.ok){
-        ToastAndroid.show('Upload done.', ToastAndroid.SHORT);
+        log.pop('Upload done.');
+        const data: GroceryList = await response.json();
+        storage.writeGroceryList(data);
 
         setTimeout(() => {
           this.setState({ isUploading: false }, () => {
@@ -160,7 +159,6 @@ class Table extends React.Component<Props, States> {
       itemsShown,
       isDownloading,
       isUploading,
-      isSaving,
       isLoggingIn,
     } = this.state;
 
@@ -183,6 +181,7 @@ class Table extends React.Component<Props, States> {
               <CategoryRow 
                 key={'category' + category.id} 
                 category={category} 
+                items={ data.items.filter((item) => {return item.myCategory === category.id}) }
                 redrawCallback={this.redrawCallback} 
                 baseUrl={this.props.baseUrl} 
                 itemsShown={itemsShown}></CategoryRow>
@@ -201,14 +200,14 @@ class Table extends React.Component<Props, States> {
               <React.Fragment>
                 <Pressable onPress={this.uploadGroceryList}>
                 {isUploading?
-                  <Loading imageSize={35} margin={10}></Loading>
+                  <Loading imageSize={30} margin={10}></Loading>
                   :
                   <Image style={styles.bottomImage} source={require('../../public/images/upload.png')}></Image>
                 }
               </Pressable>
               <Pressable onPress={this.downloadGroceryList}>
                 {isDownloading? 
-                  <Loading imageSize={35} margin={10}></Loading>
+                  <Loading imageSize={30} margin={10}></Loading>
                   :
                   <Image style={styles.bottomImage} source={require('../../public/images/download.png')}></Image>
                 }
@@ -219,13 +218,6 @@ class Table extends React.Component<Props, States> {
             }
           </View>
           <View style={styles.bottomRightContainer}>
-            <Pressable onPress={this.saveGroceryList}>
-              {isSaving?
-                <Loading imageSize={35} margin={10}></Loading>
-                :
-                <Image style={styles.bottomImage} source={require('../../public/images/save.png')}></Image>
-              }
-            </Pressable>
             <Pressable onPress={this.changeItemsShown}>
               {itemsShown === ItemsShown.Both && <Image style={styles.bottomImage} source={require('../../public/images/checkedunchecked.png')}></Image>}
               {itemsShown === ItemsShown.Checked && <Image style={styles.bottomImage} source={require('../../public/images/checked.png')}></Image>}

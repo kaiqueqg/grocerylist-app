@@ -1,4 +1,5 @@
 import { Alert, ToastAndroid } from 'react-native';
+import log from '../Log/Log';
 import storage from '../Storage/Storage';
 
 const errors = [400, 401, 404, 409, 500, 503];
@@ -26,7 +27,7 @@ async function request(
     });
     if(response !== undefined && errors.includes(response.status)){
       const message = await response.text();
-      ToastAndroid.show(message, ToastAndroid.SHORT);
+      log.pop(message);
     }
 
     return response;
@@ -35,7 +36,7 @@ async function request(
       fError();
     }
     else {
-      ToastAndroid.show("Untreated error..." + error, ToastAndroid.SHORT);
+      log.pop("Untreated error..." + error);
     }
     return undefined;
   }
