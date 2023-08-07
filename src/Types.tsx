@@ -1,6 +1,8 @@
 export interface GroceryList{
   categories: Category[]
   items: Item[]
+  deletedCategories: Category[]|null
+  deletedItems: Item[]|null
 }
 
 export interface Category{

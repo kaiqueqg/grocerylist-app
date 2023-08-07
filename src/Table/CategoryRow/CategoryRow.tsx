@@ -4,13 +4,15 @@ import ItemRow from '../ItemRow/ItemRow';
 import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput } from 'react-native';
 import colors from '../../Colors';
 import storage from '../../Storage/Storage';
+import log from '../../Log/Log';
 
 interface Props{
   category: Category,
   items: Item[],
   redrawCallback: () => void,
   baseUrl: string,
-  itemsShown: ItemsShown
+  itemsShown: ItemsShown,
+  isLocked: boolean,
 }
 
 interface States{
@@ -48,6 +50,11 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   addNewItem = async () => {
+    if(this.props.isLocked){
+      log.pop("List is locked");
+      return;
+    }
+
     const { category } = this.props;
     const newItem: Item = {
       id: storage.randomId(),
@@ -61,6 +68,11 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   textPress = () => {
+    if(this.props.isLocked){
+      log.pop("List is locked");
+      return;
+    }
+
     if(!this.state.isEditing) {
       this.setState({
         isEditing: true
@@ -86,16 +98,6 @@ class CategoryRow extends React.Component<Props, States>{
       this.setState({isEditing: false});
     }
   }
-
-  // updateItemsDisplay = async () => {
-  //   const { category } = this.props;
-  //   const newItems: Item[]|undefined = await storage.readItemsOnCategory(category.id === '' ? category.text: category.id);
-  //   if(newItems !== undefined) {
-  //     this.setState({
-  //       items: newItems
-  //     });
-  //   }
-  // }
 
   changeItemsDisplay = async () => {
     const newCategory: Category = { ...this.props.category, isOpen: !this.props.category.isOpen};
@@ -133,11 +135,11 @@ class CategoryRow extends React.Component<Props, States>{
             :
             (category.isOpen ? 
               <Pressable onPress={this.changeItemsDisplay}>
-                <Image style={styles.chevronImage} source={require('../../../public/images/down-chevron.png')}/>
+                <Image style={styles.chevronAddImage} source={require('../../../public/images/down-chevron.png')}/>
               </Pressable>
               :
               <Pressable onPress={this.changeItemsDisplay}>
-                <Image style={styles.chevronImage} source={require('../../../public/images/up-chevron.png')}/>
+                <Image style={styles.chevronAddImage} source={require('../../../public/images/up-chevron.png')}/>
               </Pressable>)
           }
           {isEditing?
@@ -148,20 +150,24 @@ class CategoryRow extends React.Component<Props, States>{
             </Pressable>
           }
           {isEditing?
-            <Pressable onPress={this.cancelEdit}>
-              <Image style={[styles.cancelImage, {tintColor: colors.red}]} source={require('../../../public/images/cancel.png')}/>
-            </Pressable>
-          :
+            <React.Fragment>
+              <Pressable onPress={this.textInputEnter}>
+                <Image style={[styles.doneCancelImage, {tintColor: colors.green}]} source={require('../../../public/images/done.png')}/>
+              </Pressable>
+              <Pressable onPress={this.cancelEdit}>
+                <Image style={[styles.doneCancelImage, {tintColor: colors.red}]} source={require('../../../public/images/cancel.png')}/>
+              </Pressable>
+            </React.Fragment>
+            :
             <Pressable onPress={this.addNewItem}>
-              <Image style={[styles.chevronImage, {opacity: category.isOpen? 1:0}]} source={require('../../../public/images/add.png')}/>
-            </Pressable>
-          }
+              <Image style={[styles.chevronAddImage, {tintColor: colors.beigelightdark}]} source={require('../../../public/images/add.png')}/>
+            </Pressable>}
         </View>
         {category.isOpen &&
             items.map((item: Item, index: number) => (
               item.myCategory === category.id && 
               this.shoudShowItem(item) &&
-              <ItemRow key={'item' + item.id} item={item} baseUrl={this.props.baseUrl} redrawCallback={this.props.redrawCallback} isPair={index % 2===0}></ItemRow>
+              <ItemRow key={'item' + item.id} item={item} baseUrl={this.props.baseUrl} redrawCallback={this.props.redrawCallback} isPair={index % 2===0} isLocked={this.props.isLocked}></ItemRow>
             )
           )
         }
@@ -180,12 +186,13 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  chevronImage:{
-    margin: 10,
+  chevronAddImage:{
+    margin: 7,
     width: 20,
-    height: 20
+    height: 20,
+    tintColor: colors.beigelightdark,
   },
-  cancelImage:{
+  doneCancelImage:{
     margin: 10,
     width: 20,
     height: 20

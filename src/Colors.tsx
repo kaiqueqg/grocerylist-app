@@ -5,19 +5,20 @@ type ColorPalette = {
   blue: string,
   bluelight: string,
   beige: string,
+  beigelightdark: string,
   beigedark: string,
   red: string,
   green: string,
   placeholderTextColor: string,
 };
 
-// Create a constant object with the color values
 const colors: ColorPalette = {
-  bluedarker: '#1D1D1D', // Example: Blue color
-  bluedark: '#21242B', // Example: Gray color
+  bluedarker: '#1D1D1D',
+  bluedark: '#21242B',
   blue: '#282C34',
   beige: '#F5F5DC',
-  beigedark: '#5F5F5F',
+  beigelightdark: '#A5A596',
+  beigedark: '#4B4B46',
   red: '#EE6C4D',
   green: '#99CE99',
   bluelight: '#98C1D9',

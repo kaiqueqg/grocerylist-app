@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, TextInput, View, Pressable, Text, Image} from "react-native";
 import colors from "../Colors";
+import Loading from "../Loading/Loading";
 import log from "../Log/Log";
 import request from '../Requests/RequestFactory';
 import storage from '../Storage/Storage';
@@ -150,7 +151,7 @@ class Login extends React.Component<Props, States>{
   }
 
   render(): React.ReactNode {
-    const { isLogged, baseUrl, isEditingBaseUrl } = this.state;
+    const { isLogged, isLogging, baseUrl, isEditingBaseUrl } = this.state;
 
     return(
       <View style={styles.loggingContainer}>
@@ -183,9 +184,12 @@ class Login extends React.Component<Props, States>{
           }
           <TextInput placeholder="Username" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} onChangeText={this.handleUsernameChange}></TextInput>
           <TextInput placeholder="Password" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
+          {isLogging?
+          <Loading></Loading>
+          :
           <Pressable style={styles.loginButton} onPress={this.login}>
             <Text style={styles.loginButtonText}>Login</Text>
-          </Pressable>
+          </Pressable>}
         </React.Fragment>
         }
       </View>

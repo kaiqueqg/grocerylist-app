@@ -1,9 +1,8 @@
-import React, {useRef} from 'react';
-import { StyleSheet, Animated, Easing, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, ImageStyle, Animated, Easing, View } from 'react-native';
 
 interface Props{
-  imageSize?: number,
-  margin?: number
+  style: ImageStyle,
 }
 interface States{
 }
@@ -39,15 +38,6 @@ class Loading extends React.Component<Props, States>{
   };
 
   render(): React.ReactNode {
-    const { imageSize, margin } = this.props;
-
-    const dynamicStyle = StyleSheet.create({
-      imageContainer: {
-        width: imageSize === undefined? 30:imageSize,
-        height: imageSize === undefined? 30:imageSize,
-        margin: margin === undefined? 5:margin,
-      }
-    });
 
     const rotate = this.rotateValue.interpolate({
       inputRange: [0, 1],
@@ -55,7 +45,7 @@ class Loading extends React.Component<Props, States>{
     });
 
     return(
-      <View style={dynamicStyle.imageContainer}>
+      <View style={this.props.style}>
         <Animated.Image 
             style={[styles.image, { transform: [{rotate}] }]}
             source={require('../../public/images/refresh.png')}

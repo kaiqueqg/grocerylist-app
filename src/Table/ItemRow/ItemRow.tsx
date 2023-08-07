@@ -10,6 +10,7 @@ interface Props{
   redrawCallback: () => void, 
   isPair: boolean,
   baseUrl: string,
+  isLocked: boolean,
 }
 
 interface States{
@@ -40,6 +41,11 @@ class ItemRow extends React.Component<Props,States>{
   }
 
   textPress = () => {
+    if(this.props.isLocked){
+      log.pop("List is locked");
+      return;
+    }
+
     if(!this.state.isEditing) {
       this.setState({
         isEditing: true
@@ -79,7 +85,7 @@ class ItemRow extends React.Component<Props,States>{
 
   render(): React.ReactNode {
     const { isPair, item } = this.props;
-    const {  isEditing, textValue } = this.state;
+    const { isEditing, textValue } = this.state;
 
     return(
         <View style={isPair? [styles.itemRowContainer, {backgroundColor: colors.bluedark}] : [styles.itemRowContainer, {backgroundColor: colors.blue}]}>

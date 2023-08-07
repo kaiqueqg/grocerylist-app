@@ -3,6 +3,21 @@ import { Alert } from "react-native";
 import log from "../Log/Log";
 import { Category, GroceryList, Item, LoginModel } from "../Types";
 
+type StorageKeys = {
+  JwtToken: string,
+  GroceryList: string,
+  BaseUrl: string,
+  DeletedItems: string,
+  DeletedCategories: string,
+};
+
+const keys: StorageKeys = {
+  JwtToken: '@grocerylistapp:jwt',
+  GroceryList: '@grocerylistapp:data',
+  BaseUrl: '@grocerylistapp:baseurl',
+  DeletedItems: '@grocerylistapp:deleteditems',
+  DeletedCategories: '@grocerylistapp:deletedcategories',
+};
 
 const storage = {
 
@@ -18,7 +33,7 @@ const storage = {
 
   async writeGroceryList(data: GroceryList){
     try {
-      await AsyncStorage.setItem('@grocerylistapp:data', JSON.stringify(data));
+      await AsyncStorage.setItem(keys.GroceryList, JSON.stringify(data));
     } catch (err) {
       log.error('[writeGroceryList] catching writing grocery list.');
       return null;
@@ -143,31 +158,123 @@ const storage = {
     }
   },
 
+  async writeDeletedItems(items: Item[]){
+    try {
+      await AsyncStorage.setItem(keys.DeletedItems, JSON.stringify(items));
+    } catch (err) {
+      log.error('[writeDeletedItems] catching writing grocery list.');
+      return null;
+    }
+  },
+
+  async readDeletedItems(){
+    try {
+      const data = await AsyncStorage.getItem(keys.DeletedItems);
+    
+      if(data !== null){
+        try {
+          const parsedData: Item[] = JSON.parse(data);
+          return parsedData;
+        } catch (err) {
+          log.error('[readDeletedItems] Error parsing json');
+        }
+      }
+      return [];
+    } catch (err) {
+      log.error('[readDeletedItems] catching reading deleted items.');
+      return null;
+    }
+  },
+
+  async writeDeletedCategories(categories: Category[]){
+    try {
+      await AsyncStorage.setItem(keys.DeletedCategories, JSON.stringify(categories));
+    } catch (err) {
+      log.error('[writeDeletedCategory] catching writing grocery list.');
+      return null;
+    }
+  },
+
+  async readDeletedCategory(){ 
+    try {
+      const data = await AsyncStorage.getItem(keys.DeletedCategories);
+    
+      if(data !== null){
+        try {
+          const parsedData: Category[] = JSON.parse(data);
+          return parsedData;
+        } catch (err) {
+          log.error('[readDeletedCategory] Error parsing json');
+        }
+      }
+      return [];
+    } catch (err) {
+      log.error('[readDeletedCategory] catching reading deleted categories.');
+      return null;
+    }
+  },
+
+  async deleteDeletedCategories(){
+    try {
+      await AsyncStorage.removeItem(keys.DeletedCategories);
+    } catch (error) {
+      log.error('[deleteDeletedCategories] catching deleting deleted categories.');
+    }
+  },
+
+  async deleteDeletedItems(){
+    try {
+      await AsyncStorage.removeItem(keys.DeletedItems);
+    } catch (error) {
+      log.error('[deleteDeletedItems] catching deleting deleted items.');
+    }
+  },
+
   async deleteCategory(categoryId: string) {
     const data: GroceryList|null = await this.readGroceryList();
+    const deletedCategories: Category[]|null = await this.readDeletedCategory();
 
     if (data !== null) {
-        const newData = data.categories.filter((c) => c.id !== categoryId);
+      const categoriesToBeDeleted: Category|undefined = data.categories.find((i) => i.id === categoryId);
+
+      if(categoriesToBeDeleted !== undefined){
+        if(deletedCategories !== null) {
+          deletedCategories.push(categoriesToBeDeleted);
+          this.writeDeletedCategories(deletedCategories);
+        }
+
+        const newData = data.categories.filter((category) => category.id !== categoriesToBeDeleted.id);
         this.writeGroceryList({ ...data, categories: newData });
+      }
     }
   },
 
   async deleteItem(itemId: string){
     const data: GroceryList|null = await this.readGroceryList();
+    const deletedItems: Item[]|null = await this.readDeletedItems();
 
     if (data !== null) {
-        const newData = data.items.filter((i) => i.id !== itemId);
+      const itemToBeDeleted: Item|undefined = data.items.find((i) => i.id === itemId);
+
+      if(itemToBeDeleted !== undefined){
+        if(deletedItems !== null) {
+          deletedItems.push(itemToBeDeleted);
+          this.writeDeletedItems(deletedItems);
+        }
+
+        const newData = data.items.filter((item) => item.id !== itemToBeDeleted.id);
         this.writeGroceryList({ ...data, items: newData });
+      }
     }
   },
   
   async writeBaseUrl(baseUrl: string){
-    await AsyncStorage.setItem('@grocerylistapp:baseurl', JSON.stringify(baseUrl));
+    await AsyncStorage.setItem(keys.BaseUrl, JSON.stringify(baseUrl));
   },
   
   async readBaseUrl(){
     try {
-      const baseUrl = await AsyncStorage.getItem('@grocerylistapp:baseurl');
+      const baseUrl = await AsyncStorage.getItem(keys.BaseUrl);
     
       if(baseUrl === null){
         log.dev('[readBaseUrl] no base url, setting default');
@@ -186,7 +293,7 @@ const storage = {
   
   async writeJwtToken(token: string){
     try {
-      await AsyncStorage.setItem('@grocerylistapp:jwt', JSON.stringify(token));
+      await AsyncStorage.setItem(keys.JwtToken, JSON.stringify(token));
     } catch (err) {
       log.error('[readJwtToken] catching writing jwt token.');
       log.pop('Error getting saved login info.');
@@ -195,7 +302,7 @@ const storage = {
   
   async readJwtToken(){
     try {
-      const loginModelJson = await AsyncStorage.getItem('@grocerylistapp:jwt');
+      const loginModelJson = await AsyncStorage.getItem(keys.JwtToken);
     
       if(loginModelJson === null){
         return null;
@@ -212,7 +319,7 @@ const storage = {
 
   async deleteJwtToken(){
     try {
-      await AsyncStorage.removeItem('@grocerylistapp:jwt');
+      await AsyncStorage.removeItem(keys.JwtToken);
     } catch (error) {
       log.error('[readJwtToken] catching deleting jwt token.');
     }
