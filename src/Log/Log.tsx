@@ -14,14 +14,14 @@ const log = {
   error(text: string){
 
   },
-  pop(text: string){
-    ToastAndroid.show(text, ToastAndroid.SHORT);
+  pop(text: string|null|undefined){
+    if(text !== '' && text !== null && text !== undefined) ToastAndroid.show(text, ToastAndroid.SHORT);
   },
-  popp(text: string){
-    ToastAndroid.show(text, ToastAndroid.LONG);
+  popp(text: string|null|undefined){
+    if(text !== '' && text !== null && text !== undefined) ToastAndroid.show(text, ToastAndroid.LONG);
   },
-  alert(text: string){
-    Alert.alert(text);
+  alert(text: string|null|undefined){
+    if(text !== '' && text !== null && text !== undefined) Alert.alert(text);
   },
 }
 

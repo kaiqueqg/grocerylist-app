@@ -1,7 +1,7 @@
 import React from 'react';
-import { Item, Category, ItemsShown } from '../../Types';
+import { Item, Category, ItemsShown, StorageInfo } from '../../Types';
 import ItemRow from '../ItemRow/ItemRow';
-import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput } from 'react-native';
+import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput, Keyboard } from 'react-native';
 import colors from '../../Colors';
 import storage from '../../Storage/Storage';
 import log from '../../Log/Log';
@@ -13,6 +13,8 @@ interface Props{
   baseUrl: string,
   itemsShown: ItemsShown,
   isLocked: boolean,
+  startFocused: boolean,
+  resetStartFocused: () => void,
 }
 
 interface States{
@@ -25,10 +27,13 @@ interface States{
 }
 
 class CategoryRow extends React.Component<Props, States>{
+  itemIdThatWasJustAdded = '';
+  keyboardDidHideListener: any = '';
+  
   constructor(props: Props){
     super(props);
     this.state = {
-      isEditing: false,
+      isEditing: this.props.startFocused,
       isDeleting: false,
       textValue: this.props.category.text,
       isSavingText: false,
@@ -37,6 +42,18 @@ class CategoryRow extends React.Component<Props, States>{
     };
   }
 
+  componentDidMount(): void {
+    this.keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', this.keyboardDidHide);
+  }
+
+  componentWillUnmount(): void {
+    this.keyboardDidHideListener.remove();
+  }
+
+  keyboardDidHide = () => {
+    this.props.resetStartFocused();
+  }
+  
   confirmDeleteCategory = () => {
     Alert.alert('', 'Do you really want to delete?', [
       { text: 'NO', onPress: () => { this.setState({ isEditing: false}) }},
@@ -60,11 +77,14 @@ class CategoryRow extends React.Component<Props, States>{
       id: storage.randomId(),
       text: '',
       isChecked: false,
-      myCategory: category.id === ''? category.text : category.id
+      myCategory: category.id === ''? category.text : category.id,
+      goodPrice: '$',
+      quantity: 1,
+      quantityUnit: '',
     };
     await storage.insertItem(newItem);
-
     this.props.redrawCallback();
+    this.itemIdThatWasJustAdded = newItem.id;
   }
 
   textPress = () => {
@@ -87,12 +107,20 @@ class CategoryRow extends React.Component<Props, States>{
   textInputEnter = async () => {
     const newText: string = this.state.textValue.toUpperCase();
     const { category } = this.props;
+
+    this.props.resetStartFocused();
+
     if(newText !== category.text) {
       const newCategory: Category = {...category, text: newText};
-      await storage.updateCategory(newCategory);
+      const info: StorageInfo<Category> = await storage.updateCategory(newCategory);
 
-      this.setState({isEditing: false});
-      this.props.redrawCallback();
+      if(info.ok) {
+        this.setState({isEditing: false});
+        this.props.redrawCallback();
+      }
+      else {
+        log.pop(info.msg);
+      }
     }
     else{
       this.setState({isEditing: false});
@@ -112,11 +140,14 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   cancelEdit = () => {
+    this.props.resetStartFocused();
     this.setState({isEditing: false, textValue: this.props.category.text });
   }
 
+  resetStartFocused = () => { this.itemIdThatWasJustAdded = ''; }
+
   render(): React.ReactNode {
-    const { category, items, itemsShown } = this.props;
+    const { category, items, startFocused } = this.props;
     const { isEditing, textValue } = this.state;
 
     //TODO improve
@@ -160,14 +191,22 @@ class CategoryRow extends React.Component<Props, States>{
             </React.Fragment>
             :
             <Pressable onPress={this.addNewItem}>
-              <Image style={[styles.chevronAddImage, {tintColor: colors.beigelightdark}]} source={require('../../../public/images/add.png')}/>
+              <Image style={styles.chevronAddImage} source={require('../../../public/images/add.png')}/>
             </Pressable>}
         </View>
         {category.isOpen &&
             items.map((item: Item, index: number) => (
               item.myCategory === category.id && 
               this.shoudShowItem(item) &&
-              <ItemRow key={'item' + item.id} item={item} baseUrl={this.props.baseUrl} redrawCallback={this.props.redrawCallback} isPair={index % 2===0} isLocked={this.props.isLocked}></ItemRow>
+              <ItemRow 
+                key={'item' + item.id}
+                item={item}
+                baseUrl={this.props.baseUrl}
+                redrawCallback={this.props.redrawCallback}
+                isPair={index % 2===0}
+                isLocked={this.props.isLocked}
+                startFocused={this.itemIdThatWasJustAdded === item.id}
+                resetStartFocused={this.resetStartFocused}></ItemRow>
             )
           )
         }
@@ -190,7 +229,7 @@ const styles = StyleSheet.create({
     margin: 7,
     width: 20,
     height: 20,
-    tintColor: colors.beigelightdark,
+    tintColor: colors.beige,
   },
   doneCancelImage:{
     margin: 10,
@@ -208,6 +247,7 @@ const styles = StyleSheet.create({
   rowText: {
     textAlign: 'center',
     color: colors.beige,
+    fontWeight: 'bold',
   },
   categoryTextInput: {
     flex: 1,

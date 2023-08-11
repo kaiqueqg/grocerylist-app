@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert } from "react-native";
 import log from "../Log/Log";
-import { Category, GroceryList, Item, LoginModel } from "../Types";
+import { Category, GroceryList, Item, LoginModel, StorageInfo } from "../Types";
 
 type StorageKeys = {
   JwtToken: string,
@@ -73,10 +72,13 @@ const storage = {
     }
   },
 
-  async getItemWithSameText(text: string, myCategory: string){
+  async getItemWithSameText(item: Item){
     const data: GroceryList|null = await this.readGroceryList();
 
-    if(data !== null) return data.items.find((item: Item) => { return item.text === text && item.myCategory === myCategory });
+    if(data !== null) return data.items.find((i: Item) => 
+    { 
+      return i.id !== item.id && i.text === item.text && i.myCategory === item.myCategory
+    });
     return undefined;
   },
 
@@ -92,6 +94,7 @@ const storage = {
       }
       else{
         log.pop('Item already exist!');
+        return uniqueItem[0];
       }
     }
   },
@@ -103,7 +106,7 @@ const storage = {
       let uniqueCategory: Category[] = data.categories.filter((c) => c.text === category.text && c.id != category.id);
 
       if(uniqueCategory.length === 0){
-        data.categories.push(category);
+        data.categories.unshift(category);
         this.writeGroceryList(data);
       }
       else{
@@ -114,6 +117,7 @@ const storage = {
 
   async updateCategory(category: Category){
     const data: GroceryList|null = await this.readGroceryList();
+    let info: StorageInfo<Category> = { ok: false };
 
     if(data !== null){
       let uniqueCategory: Category[] = data.categories.filter((c) => c.text === category.text && c.id != category.id);
@@ -127,12 +131,16 @@ const storage = {
             return c;
           }
         });
+
         this.writeGroceryList({...data, categories: newData });
+        info = { ok: true };
       }
       else{
-        log.pop('Category already exist!');
+        info = { ok: false, msg: 'Category already exist!'};
       }
     }
+
+    return info;
   },
 
   async updateItem(item: Item){

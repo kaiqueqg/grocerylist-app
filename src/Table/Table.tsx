@@ -8,7 +8,7 @@ import storage from '../Storage/Storage';
 import Loading from '../Loading/Loading';
 import Login from '../Login/Login';
 import log from '../Log/Log';
-import PressImage from '../PressableImage/PressImage';
+import PressImage from '../PressImage/PressImage';
 
 interface P{
   baseUrl: string,
@@ -22,7 +22,9 @@ interface S{
   isTestingServerUp: boolean,
   itemsShown: ItemsShown,
   isDownloading: boolean,
+  doneDownload: boolean,
   isUploading: boolean,
+  doneUpload: boolean,
   isSaving: boolean,
   isLoggingIn: boolean,
   showingInfo: boolean,
@@ -31,6 +33,7 @@ interface S{
 }
 
 class Table extends React.Component<P, S> {
+  categoryIdThatWasJustAdded = '';
 
   constructor(props: P){
     super(props);
@@ -41,7 +44,9 @@ class Table extends React.Component<P, S> {
       isTestingServerUp: false,
       itemsShown: ItemsShown.Both,
       isDownloading: false,
+      doneDownload: false,
       isUploading: false,
+      doneUpload: false,
       isSaving: false,
       isLoggingIn: false,
       showingInfo: false,
@@ -52,6 +57,10 @@ class Table extends React.Component<P, S> {
 
   componentDidMount(): void {
     this.readGroceryList();
+  }
+
+  resetStartFocused = () => { 
+    this.categoryIdThatWasJustAdded = ''; 
   }
 
   isServerUp = async () => {
@@ -109,16 +118,19 @@ class Table extends React.Component<P, S> {
         });
   
         if(response !== undefined && response.ok){
-          log.pop('Upload done.');
           const data: GroceryList = await response.json();
           storage.writeGroceryList(data);
           storage.deleteDeletedCategories();
           storage.deleteDeletedItems();
   
           setTimeout(() => {
-            this.setState({ isUploading: false }, () => {
+            this.setState({ isUploading: false, doneUpload: true }, () => {
               this.redrawCallback();
             });
+
+            setTimeout(() => {
+              this.setState({ doneUpload: false });
+            }, 2000);
           }, 500);
         }
       }
@@ -142,9 +154,13 @@ class Table extends React.Component<P, S> {
         storage.writeGroceryList(data);
 
         setTimeout(() => {
-          this.setState({ isDownloading: false }, () => {
+          this.setState({ isDownloading: false, doneDownload: true }, () => {
             this.redrawCallback();
           });
+
+          setTimeout(() => {
+            this.setState({ doneDownload: false });
+          }, 2000);
         }, 500);
       }
     });
@@ -159,12 +175,12 @@ class Table extends React.Component<P, S> {
     let newCategory: Category = {
       id: storage.randomId(),
       text: '',
-      isOpen: false
+      isOpen: true,
     }
 
     await storage.insertCategory(newCategory);
-
     this.readGroceryList();
+    this.categoryIdThatWasJustAdded = newCategory.id;
   }
 
   redrawCallback = async () => {
@@ -204,7 +220,9 @@ class Table extends React.Component<P, S> {
       data, 
       itemsShown,
       isDownloading,
+      doneDownload,
       isUploading,
+      doneUpload,
       isLoggingIn,
       isTestingServerUp,
       isLocked,
@@ -215,7 +233,7 @@ class Table extends React.Component<P, S> {
         {isLoggingIn?
           <Login baseUrl={this.props.baseUrl} isLoggedCallback={this.props.isLoggedCallback}></Login>
           :
-          <ScrollView style={styles.tableBody}>
+          <ScrollView style={styles.tableBody} keyboardShouldPersistTaps={'always'}>
             <View style={styles.tableHeaderContainer}>
               <Image style={[styles.tableHeaderImage, {opacity: 0}]} source={require('../../public/images/doubledown-chevron.png')}/>
               <Pressable style={styles.tableHeaderText}>
@@ -226,20 +244,23 @@ class Table extends React.Component<P, S> {
               </Pressable>
             </View>
             {data.categories.length === 0 ?
-            <View style={styles.tableNoCategoryContainer}>
-              <Text style={styles.tableNoCategoryText}>LIST IS EMPTY</Text>
-            </View>
-            :
-            data.categories.map((category) => (
-              <CategoryRow 
-                key={'category' + category.id} 
-                category={category} 
-                items={ data.items.filter((item) => {return item.myCategory === category.id}) }
-                redrawCallback={this.redrawCallback} 
-                baseUrl={this.props.baseUrl} 
-                itemsShown={itemsShown}
-                isLocked={isLocked}></CategoryRow>
-            ))}
+              <View style={styles.tableNoCategoryContainer}>
+                <Text style={styles.tableNoCategoryText}>LIST IS EMPTY</Text>
+              </View>
+              :
+              data.categories.map((category) => (
+                <CategoryRow 
+                  key={'category' + category.id} 
+                  category={category} 
+                  items={ data.items.filter((item) => {return item.myCategory === category.id}) }
+                  redrawCallback={this.redrawCallback} 
+                  baseUrl={this.props.baseUrl} 
+                  itemsShown={itemsShown}
+                  isLocked={isLocked}
+                  startFocused={this.categoryIdThatWasJustAdded === category.id}
+                  resetStartFocused={this.resetStartFocused}></CategoryRow>
+              ))
+            }
           </ScrollView>
         }
         <View style={styles.bottomContainer}>
@@ -255,14 +276,14 @@ class Table extends React.Component<P, S> {
                     {isUploading?
                       <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
                       :
-                      <Image style={styles.bottomImage} source={require('../../public/images/upload.png')}></Image>
+                      <Image style={[styles.bottomImage, {tintColor: doneUpload? colors.green:colors.beige}]} source={require('../../public/images/upload.png')}></Image>
                     }
                     </Pressable>
                     <Pressable onPress={this.downloadGroceryList}>
                       {isDownloading? 
                         <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
                         :
-                        <Image style={styles.bottomImage} source={require('../../public/images/download.png')}></Image>
+                        <Image style={[styles.bottomImage, {tintColor: doneDownload? colors.green:colors.beige}]} source={require('../../public/images/download.png')}></Image>
                       }
                     </Pressable>
                   </React.Fragment>
