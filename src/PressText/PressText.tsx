@@ -3,6 +3,7 @@ import { Pressable, TextStyle, Text } from "react-native";
 
 interface P{
   style: any,
+  textStyle: any,
   text: string,
   onPress: () => void,
 }
@@ -20,8 +21,8 @@ class PressImage extends React.Component<P, S>{
 
   render(): React.ReactNode {
     return(
-      <Pressable onPress={this.props.onPress}>
-        <Text style={this.props.style as TextStyle}>{this.props.text}</Text>
+      <Pressable style={this.props.style} onPress={this.props.onPress}>
+        <Text style={this.props.textStyle}>{this.props.text}</Text>
       </Pressable>
     )
   }

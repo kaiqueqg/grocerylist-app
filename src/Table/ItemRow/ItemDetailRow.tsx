@@ -4,7 +4,7 @@ import { Pressable, Image, StyleSheet, TextInput, Text, View } from "react-nativ
 import colors from "../../Colors";
 import log from "../../Log/Log";
 import PressImage from "../../PressImage/PressImage";
-import { Item } from '../../Types';
+import { Item, UserPrefs } from '../../Types';
 
 interface P{
   infoText: string,
@@ -54,21 +54,18 @@ class ItemDetailRow extends React.Component<P,S>{
 const styles = StyleSheet.create({
   itemDetailRowContainer:{
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
   },
   itemText: {
     flex: 1,
     verticalAlign: 'middle',
     color: colors.beige,
-    paddingLeft: 10,
-  },
-  checkedUncheckedImage: {
-    margin: 10,
-    width: 25,
-    height: 25,
+    height: 20,
+    margin: 5,
   },
   itemTextInput: {
     flex: 1,
+    height: 40,
     paddingLeft: 5,
     borderColor: colors.beigedark,
     borderWidth: 1,

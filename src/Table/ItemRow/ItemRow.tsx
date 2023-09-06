@@ -1,17 +1,17 @@
 import React from 'react';
-import { Item } from '../../Types';
+import { Item, UserPrefs } from '../../Types';
 import { Text, StyleSheet, Image, View, Pressable, TextInput, Keyboard } from 'react-native';
 import colors from '../../Colors';
 import storage from '../../Storage/Storage';
 import log from '../../Log/Log';
 import PressImage from '../../PressImage/PressImage';
 import ItemDetailRow from './ItemDetailRow';
-import PressText from '../../PressText/PressText';
-import { Vibration } from 'react-native/Libraries/Vibration/Vibration';
 import * as Haptics from 'expo-haptics';
+import PressText from '../../PressText/PressText';
 
 interface P{
   item: Item,
+  userPrefs: UserPrefs,
   redrawCallback: () => void,
   isPair: boolean,
   baseUrl: string,
@@ -143,16 +143,16 @@ class ItemRow extends React.Component<P,S>{
   }
 
   render(): React.ReactNode {
-    const { isPair, item } = this.props;
+    const { isPair, item, userPrefs } = this.props;
     const { isEditing } = this.state;
     let text = item.text;
     let quantity = '1';
 
-    if(item.quantity !== null && item.quantity !== undefined) {
+    if(!userPrefs.hideQuantity && item.quantity !== null && item.quantity !== undefined) {
       text = item.quantity +"x " + text;
       quantity = item.quantity.toString();
     }
-    if(item.goodPrice !== null && item.goodPrice !== undefined && item.goodPrice !== '') text = text + ' (' + item.goodPrice + ')';
+    if(item.goodPrice !== null && item.goodPrice !== undefined && item.goodPrice !== '' && item.goodPrice !== '$') text = text + ' (' + item.goodPrice + ')';
 
     let minusTintColor = item.quantity > 1? (item.isChecked? colors.beigedark : colors.beige) : colors.grey;
 
@@ -174,11 +174,9 @@ class ItemRow extends React.Component<P,S>{
         //* VIEWING
         <View style={isPair? [styles.itemRowContainer, {backgroundColor: colors.bluedark}] : [styles.itemRowContainer, {backgroundColor: colors.blue}]}>
           <React.Fragment>
-            <PressImage style={[styles.minusPlusImage, {tintColor: minusTintColor}]} onPress={this.decreaseQuantity} source={require('../../../public/images/minus.png')}></PressImage>
-            <PressImage style={[styles.minusPlusImage, {tintColor: item.isChecked? colors.beigedark : colors.beige}]} onPress={this.increaseQuantity} source={require('../../../public/images/add.png')}></PressImage>
-            <Pressable style={styles.pressableItemText} onPress={this.textPress}>
-              <Text style={[styles.itemText, {color: item.isChecked? colors.beigedark : colors.beige}]}> {text} </Text>
-            </Pressable>
+            {!userPrefs.hideQuantity && <PressImage style={[styles.minusPlusImage, {tintColor: minusTintColor}]} onPress={this.decreaseQuantity} source={require('../../../public/images/minus.png')}></PressImage>}
+            {!userPrefs.hideQuantity && <PressImage style={[styles.minusPlusImage, {tintColor: item.isChecked? colors.beigedark : colors.beige}]} onPress={this.increaseQuantity} source={require('../../../public/images/add.png')}></PressImage>}
+            <PressText text={text} textStyle={[styles.itemText, {color: item.isChecked? colors.beigedark : colors.beige}]} style={styles.pressableItemText} onPress={this.textPress}></PressText>
             {item.isChecked?
               <PressImage style={[styles.checkedUncheckedImage, {tintColor: item.isChecked? colors.beigedark : colors.beige}]} onPress={this.changeIsChecked} source={require('../../../public/images/checked.png')}></PressImage>
               :
@@ -201,10 +199,10 @@ const styles = StyleSheet.create({
   },
   itemRowDetailContainer: {
     width: '100%',
-    height: 135,
     flexDirection: 'row',
     borderStyle: 'solid',
     borderColor: 'white',
+    alignItems: 'center',
   },
   checkedUncheckedImage: {
     margin: 10,

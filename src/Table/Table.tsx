@@ -1,6 +1,6 @@
 import React from 'react';
-import { GroceryList, Category, ItemsShown, Item } from '../Types';
-import { StyleSheet, View, Text, Image, ScrollView, Pressable, ImageStyle, } from 'react-native';
+import { GroceryList, Category, ItemsShown, Item, UserPrefs } from '../Types';
+import { StyleSheet, View, Text, Image, ScrollView, Pressable, ImageStyle, FlatList, } from 'react-native';
 import CategoryRow from './CategoryRow/CategoryRow';
 import request from '../Requests/RequestFactory';
 import colors from '../Colors';
@@ -12,12 +12,15 @@ import PressImage from '../PressImage/PressImage';
 
 interface P{
   baseUrl: string,
+  userPrefs: UserPrefs,
   isLogged: boolean,
   isLoggedCallback: (value: boolean) => void,
+  userPrefsChanged: () => void,
 }
 
 interface S{
   data: GroceryList,
+  userPrefs: UserPrefs,
   isServerUp: boolean,
   isTestingServerUp: boolean,
   itemsShown: ItemsShown,
@@ -40,6 +43,7 @@ class Table extends React.Component<P, S> {
 
     this.state = {
       data: { categories: [], items: [], deletedCategories: [], deletedItems: [] },
+      userPrefs: {hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false},
       isServerUp: true,
       isTestingServerUp: false,
       itemsShown: ItemsShown.Both,
@@ -90,8 +94,8 @@ class Table extends React.Component<P, S> {
       });
     }
     else{
-      await storage.writeGroceryList({categories: [], items: []});
-      this.setState({data: {categories: [], items: []}});
+      await storage.writeGroceryList({categories: [], items: [], deletedCategories: [], deletedItems: []});
+      this.setState({data: {categories: [], items: [], deletedCategories: [], deletedItems: []}});
     }
   }
 
@@ -172,13 +176,27 @@ class Table extends React.Component<P, S> {
       return;
     }
 
+    const categoryId = storage.randomId();
     let newCategory: Category = {
-      id: storage.randomId(),
+      id: categoryId,
       text: '',
       isOpen: true,
     }
-
     await storage.insertCategory(newCategory);
+
+    if(this.props.userPrefs.shouldCreateNewItemWhenCreateNewCategory) {
+      const newItem: Item = {
+        id: storage.randomId(),
+        text: '',
+        isChecked: false,
+        myCategory: categoryId,
+        goodPrice: '$',
+        quantity: 1,
+        quantityUnit: '',
+      };
+      await storage.insertItem(newItem);
+    }
+
     this.readGroceryList();
     this.categoryIdThatWasJustAdded = newCategory.id;
   }
@@ -228,29 +246,26 @@ class Table extends React.Component<P, S> {
       isLocked,
     } = this.state;
 
+    let phrase = '';
+    if(itemsShown === ItemsShown.Unchecked) phrase = 'No UNCHECKED items to be displayed...';
+    else if(itemsShown === ItemsShown.Checked) phrase = 'No CHECKED items to be displayed...';
+    else phrase = 'List is empty...';
+
     return(
       <View style={styles.tableContainer}>
         {isLoggingIn?
-          <Login baseUrl={this.props.baseUrl} isLoggedCallback={this.props.isLoggedCallback}></Login>
+          <Login baseUrl={this.props.baseUrl} isLoggedCallback={this.props.isLoggedCallback} userPrefsChanged={this.props.userPrefsChanged}></Login>
           :
-          <ScrollView style={styles.tableBody} keyboardShouldPersistTaps={'always'}>
+          <View style={{flex: 1,}}>
             <View style={styles.tableHeaderContainer}>
               <Image style={[styles.tableHeaderImage, {opacity: 0}]} source={require('../../public/images/doubledown-chevron.png')}/>
-              <Pressable style={styles.tableHeaderText}>
-                <Text style={styles.tableHeaderText}>GROCERY LIST</Text>
-              </Pressable>
-              <Pressable onPress={this.addNewCategory}>
-                <Image style={styles.tableHeaderImage} source={require('../../public/images/add.png')} />
-              </Pressable>
+              <Text style={styles.tableHeaderText}>GROCERY LIST</Text>
+              <PressImage style={styles.tableHeaderImage} source={require('../../public/images/add.png')} onPress={this.addNewCategory}></PressImage>
             </View>
-            {data.categories.length === 0 ?
-              <View style={styles.tableNoCategoryContainer}>
-                <Text style={styles.tableNoCategoryText}>LIST IS EMPTY</Text>
-              </View>
-              :
-              data.categories.map((category) => (
-                <CategoryRow 
-                  key={'category' + category.id} 
+            <View style={styles.tableBodyContainer}>
+              <FlatList data={data.categories} renderItem={({item: category}) => (
+                <CategoryRow
+                  key={'category' + category.id}
                   category={category} 
                   items={ data.items.filter((item) => {return item.myCategory === category.id}) }
                   redrawCallback={this.redrawCallback} 
@@ -258,63 +273,62 @@ class Table extends React.Component<P, S> {
                   itemsShown={itemsShown}
                   isLocked={isLocked}
                   startFocused={this.categoryIdThatWasJustAdded === category.id}
-                  resetStartFocused={this.resetStartFocused}></CategoryRow>
-              ))
-            }
-          </ScrollView>
+                  resetStartFocused={this.resetStartFocused}
+                  userPrefs={this.props.userPrefs}></CategoryRow>
+              )}></FlatList>
+            </View>
+          </View>
         }
         <View style={styles.bottomContainer}>
-          <View style={styles.bottomLeftContainer}>
-            {isLoggingIn?
-              <PressImage style={[styles.bottomImage, {tintColor: colors.beige}]} source={require('../../public/images/menu.png')} onPress={this.user}></PressImage>
-              :
-              <View style={{flexDirection: 'row'}}>
-                <PressImage style={[styles.bottomImage, {tintColor: this.props.isLogged? colors.green : colors.red}]} source={require('../../public/images/user.png')} onPress={this.user}></PressImage>
-                {this.props.isLogged && this.state.isServerUp?
-                  <React.Fragment>
-                    <Pressable onPress={this.uploadGroceryList}>
-                    {isUploading?
-                      <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
+              <View style={styles.bottomLeftContainer}>
+                {isLoggingIn?
+                  <PressImage style={[styles.bottomImage, {tintColor: colors.beige}]} source={require('../../public/images/menu.png')} onPress={this.user}></PressImage>
+                  :
+                  <View style={{flexDirection: 'row'}}>
+                    <PressImage style={[styles.bottomImage, {tintColor: this.props.isLogged? colors.green : colors.red}]} source={require('../../public/images/user.png')} onPress={this.user}></PressImage>
+                    {this.props.isLogged && this.state.isServerUp?
+                      <React.Fragment>
+                        <Pressable onPress={this.uploadGroceryList}>
+                        {isUploading?
+                          <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
+                          :
+                          <Image style={[styles.bottomImage, {tintColor: doneUpload? colors.green:colors.beige}]} source={require('../../public/images/upload.png')}></Image>
+                        }
+                        </Pressable>
+                        <Pressable onPress={this.downloadGroceryList}>
+                          {isDownloading? 
+                            <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
+                            :
+                            <Image style={[styles.bottomImage, {tintColor: doneDownload? colors.green:colors.beige}]} source={require('../../public/images/download.png')}></Image>
+                          }
+                        </Pressable>
+                      </React.Fragment>
                       :
-                      <Image style={[styles.bottomImage, {tintColor: doneUpload? colors.green:colors.beige}]} source={require('../../public/images/upload.png')}></Image>
-                    }
-                    </Pressable>
-                    <Pressable onPress={this.downloadGroceryList}>
-                      {isDownloading? 
+                      (isTestingServerUp?
                         <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
                         :
-                        <Image style={[styles.bottomImage, {tintColor: doneDownload? colors.green:colors.beige}]} source={require('../../public/images/download.png')}></Image>
-                      }
-                    </Pressable>
-                  </React.Fragment>
-                  :
-                  (isTestingServerUp?
-                    <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
-                    :
-                    <Pressable onPress={this.isServerUp}>
-                      <Image style={[styles.bottomImage, {tintColor: colors.red}]} source={require('../../public/images/cloud-offline.png')}></Image>
-                    </Pressable>
-                  )
+                        <PressImage style={[styles.bottomImage, {tintColor: colors.red}]} source={require('../../public/images/cloud-offline.png')} onPress={this.isServerUp}></PressImage>
+                      )
+                    }
+                  </View>
                 }
               </View>
-            }
-          </View>
-          <View style={styles.bottomRightContainer}>
-            {!isLoggingIn && 
-            <View style={{flexDirection: 'row'}}>
-              {isLocked? 
-                <PressImage style={styles.bottomImage} onPress={this.lockUnlock} source={require('../../public/images/locked.png')}></PressImage>
-                :
-                <PressImage style={styles.bottomImage} onPress={this.lockUnlock} source={require('../../public/images/unlocked.png')}></PressImage>
-              }
-              <Pressable onPress={this.changeItemsShown}>
-                {itemsShown === ItemsShown.Both && <Image style={styles.bottomImage} source={require('../../public/images/checkedunchecked.png')}></Image>}
-                {itemsShown === ItemsShown.Checked && <Image style={styles.bottomImage} source={require('../../public/images/checked.png')}></Image>}
-                {itemsShown === ItemsShown.Unchecked && <Image style={styles.bottomImage} source={require('../../public/images/unchecked.png')}></Image>}
-              </Pressable>
-            </View>
-            }
-          </View>
+              <View style={styles.bottomRightContainer}>
+                {!isLoggingIn && 
+                <View style={{flexDirection: 'row'}}>
+                  {isLocked? 
+                    <PressImage style={styles.bottomImage} onPress={this.lockUnlock} source={require('../../public/images/locked.png')}></PressImage>
+                    :
+                    <PressImage style={styles.bottomImage} onPress={this.lockUnlock} source={require('../../public/images/unlocked.png')}></PressImage>
+                  }
+                  <Pressable onPress={this.changeItemsShown}>
+                    {itemsShown === ItemsShown.Both && <Image style={styles.bottomImage} source={require('../../public/images/checkedunchecked.png')}></Image>}
+                    {itemsShown === ItemsShown.Checked && <Image style={styles.bottomImage} source={require('../../public/images/checked.png')}></Image>}
+                    {itemsShown === ItemsShown.Unchecked && <Image style={styles.bottomImage} source={require('../../public/images/unchecked.png')}></Image>}
+                  </Pressable>
+                </View>
+                }
+              </View>
         </View>
       </View>
     );
@@ -326,14 +340,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'column',
   },
-  tableBody: {
-  },
   tableHeaderContainer: {
-    flex: 1,
     flexDirection: 'row',
-    width: '100%',
+    height: 50,
     alignItems: 'center',
-    borderBottomColor: colors.beige,
+    borderBottomColor: colors.bluedarker,
     borderStyle: 'solid',
     borderBottomWidth: 1,
   },
@@ -349,6 +360,9 @@ const styles = StyleSheet.create({
     width: '100%',
     color: colors.beige,
   },
+  tableBodyContainer:{
+    flex: 1,
+  },
   tableNoCategoryContainer: {
     flex: 1,
     height: 100,
@@ -360,29 +374,27 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     flexDirection: 'row',
+    height: 50,
+    borderStyle: 'solid',
+    borderTopWidth: 1,
+    borderColor: colors.bluedarker,
+    backgroundColor: colors.bluedark,
   },
   bottomLeftContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    borderStyle: 'solid',
-    borderTopWidth: 1,
-    borderColor: colors.bluedarker,
-    backgroundColor: colors.blue,
     width: '50%',
   },
   bottomRightContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    borderStyle: 'solid',
-    borderTopWidth: 1,
-    borderColor: colors.bluedarker,
-    backgroundColor: colors.blue,
     width: '50%',
   },
   bottomImage: {
     margin: 10,
     width: 30,
     height: 30,
+    tintColor: colors.beige
   },
   bottonLoading: {
     margin: 15,

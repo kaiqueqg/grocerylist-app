@@ -3,6 +3,7 @@ import { Pressable, ViewStyle, Image, ImageStyle, ImageSourcePropType } from "re
 
 interface P{
   style: any,
+  pressStyle?: any,
   onPress: () => void,
   source: ImageSourcePropType,
 }
@@ -20,7 +21,7 @@ class PressImage extends React.Component<P, S>{
 
   render(): React.ReactNode {
     return(
-      <Pressable onPress={this.props.onPress}>
+      <Pressable style={this.props.pressStyle} onPress={this.props.onPress}>
         <Image style={this.props.style as ImageStyle} source={this.props.source}></Image>
       </Pressable>
     )

@@ -5,14 +5,16 @@ import Loading from "../Loading/Loading";
 import log from "../Log/Log";
 import request from '../Requests/RequestFactory';
 import storage from '../Storage/Storage';
-import { User } from "../Types";
+import { LoginModel, User } from "../Types";
+import UserView from "./UserView";
 
-interface Props{
+interface P{
   baseUrl: string,
   isLoggedCallback: (value: boolean) => void,
+  userPrefsChanged: () => void,
 }
 
-interface States{
+interface S{
   baseUrl: string,
   isEditingBaseUrl: boolean,
   username: string,
@@ -21,8 +23,8 @@ interface States{
   isLogged: boolean,
 }
 
-class Login extends React.Component<Props, States>{
-  constructor(props: Props){
+class Login extends React.Component<P, S>{
+  constructor(props: P){
     super(props);
 
     this.state = {
@@ -121,8 +123,9 @@ class Login extends React.Component<Props, States>{
         });
         if(response !== undefined) {
           if(response.ok){
-            const jsonData = await response.json();
-            storage.writeJwtToken(jsonData);
+            const jsonData: LoginModel = await response.json();
+            storage.writeJwtToken(jsonData.token);
+            storage.writeUserPrefs(jsonData.user?.userPrefs? jsonData.user?.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
             this.props.isLoggedCallback(true);
 
             this.setState({ isLogged: true});
@@ -155,10 +158,8 @@ class Login extends React.Component<Props, States>{
 
     return(
       <View style={styles.loggingContainer}>
-        {isLogged? 
-        <Pressable style={styles.logoutButton} onPress={this.logout}>
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </Pressable>
+        {isLogged?
+        <UserView logout={this.logout} userPrefsChanged={this.props.userPrefsChanged}></UserView>
         :
         <React.Fragment>
           <Text style={styles.grocerylistText}>
@@ -277,19 +278,6 @@ const styles = StyleSheet.create({
     padding: 10
   },
   loginButtonText: {
-    fontSize: 18,
-  },
-  logoutButton: {
-    borderRadius: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '90%',
-    margin: 10,
-    color: colors.beige,
-    backgroundColor: colors.red,
-    padding: 10
-  },
-  logoutButtonText: {
     fontSize: 18,
   },
 });

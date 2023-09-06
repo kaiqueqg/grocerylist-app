@@ -25,8 +25,12 @@ export interface User{
   id?: number,
   username: string,
   password?: string,
-  email?: string,
-  role?: string
+  userPrefs?: UserPrefs,
+}
+
+export interface UserPrefs{
+  shouldCreateNewItemWhenCreateNewCategory: boolean,
+  hideQuantity: boolean,
 }
 
 export interface LoginModel{

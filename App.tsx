@@ -3,6 +3,7 @@ import { StyleSheet, View, StatusBar} from 'react-native';
 import Table from './src/Table/Table';
 import colors from './src/Colors';
 import storage from './src/Storage/Storage';
+import { UserPrefs } from './src/Types';
 
 interface Props{
 }
@@ -10,7 +11,8 @@ interface Props{
 interface States{
   isLogged: boolean,
   isServerUp: boolean,
-  baseUrl: string
+  baseUrl: string,
+  userPrefs: UserPrefs,
 }
 
 class App extends React.Component<Props, States>{
@@ -20,13 +22,19 @@ class App extends React.Component<Props, States>{
     this.state = {
       isLogged: false,
       isServerUp: true,
-      baseUrl: ''
+      baseUrl: '',
+      userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false}
     }
   }
 
   componentDidMount(): void {
     this.loadBaseUrl();
     this.loadLogin();
+    this.loadUserPrefs();
+  }
+
+  userPrefsChanged = () => {
+    this.loadUserPrefs();
   }
 
   loadLogin = async () => {
@@ -59,6 +67,25 @@ class App extends React.Component<Props, States>{
     }
   }
 
+  loadUserPrefs = async () => {
+    try {
+      const userPrefs = await storage.readUserPrefs();
+      if(userPrefs === null){
+       storage.writeUserPrefs({ hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
+       this.setState({
+         userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false}
+       });
+      }
+      else{
+       this.setState({
+         userPrefs
+       });
+      }
+   } catch (err) {
+     console.error('Error loading user preferences: ', err);
+   }
+  }
+
   isLoggedCallback = (value: boolean) => {
     this.setState({
       isLogged: value
@@ -66,11 +93,11 @@ class App extends React.Component<Props, States>{
   }
 
   render(): React.ReactNode {
-    const { isLogged, baseUrl } = this.state;
+    const { isLogged, baseUrl, userPrefs } = this.state;
 
     return(
       <View style={styles.container}>
-        <Table baseUrl={baseUrl} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback}></Table>
+        <Table baseUrl={baseUrl} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback} userPrefs={userPrefs} userPrefsChanged={this.userPrefsChanged}></Table>
         <StatusBar backgroundColor={colors.bluedark} barStyle="light-content"/>
       </View>
     )

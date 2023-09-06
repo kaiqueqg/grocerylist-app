@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import log from "../Log/Log";
-import { Category, GroceryList, Item, LoginModel, StorageInfo } from "../Types";
+import { Category, GroceryList, Item, LoginModel, StorageInfo, UserPrefs } from "../Types";
 
 type StorageKeys = {
   JwtToken: string,
@@ -8,6 +8,7 @@ type StorageKeys = {
   BaseUrl: string,
   DeletedItems: string,
   DeletedCategories: string,
+  UserPrefs: string,
 };
 
 const keys: StorageKeys = {
@@ -16,6 +17,7 @@ const keys: StorageKeys = {
   BaseUrl: '@grocerylistapp:baseurl',
   DeletedItems: '@grocerylistapp:deleteditems',
   DeletedCategories: '@grocerylistapp:deletedcategories',
+  UserPrefs: '@grocerylistapp:userprefs',
 };
 
 const storage = {
@@ -330,6 +332,32 @@ const storage = {
       await AsyncStorage.removeItem(keys.JwtToken);
     } catch (error) {
       log.error('[readJwtToken] catching deleting jwt token.');
+    }
+  },
+
+  async writeUserPrefs(userPrefs: UserPrefs){
+    try{
+      await AsyncStorage.setItem(keys.UserPrefs, JSON.stringify(userPrefs));
+    } catch (err){
+      log.error('[writeUserPrefs] catching writing user prefs.');
+      log.pop('Error getting user preferences.');
+    }
+  },
+
+  async readUserPrefs(){
+    try {
+      const userPrefs = await AsyncStorage.getItem(keys.UserPrefs);
+    
+      if(userPrefs === null){
+        return null;
+      }
+      else{
+        const parsedUserPrefs: UserPrefs = JSON.parse(userPrefs);
+        return parsedUserPrefs;
+      }
+    } catch (err) {
+      log.error('[readJwtToken] catching reading jwt token.');
+      return null
     }
   },
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Item, Category, ItemsShown, StorageInfo } from '../../Types';
+import { Item, Category, ItemsShown, StorageInfo, UserPrefs } from '../../Types';
 import ItemRow from '../ItemRow/ItemRow';
 import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput, Keyboard } from 'react-native';
 import colors from '../../Colors';
@@ -9,6 +9,7 @@ import log from '../../Log/Log';
 interface Props{
   category: Category,
   items: Item[],
+  userPrefs: UserPrefs,
   redrawCallback: () => void,
   baseUrl: string,
   itemsShown: ItemsShown,
@@ -206,7 +207,8 @@ class CategoryRow extends React.Component<Props, States>{
                 isPair={index % 2===0}
                 isLocked={this.props.isLocked}
                 startFocused={this.itemIdThatWasJustAdded === item.id}
-                resetStartFocused={this.resetStartFocused}></ItemRow>
+                resetStartFocused={this.resetStartFocused}
+                userPrefs={this.props.userPrefs}></ItemRow>
             )
           )
         }
