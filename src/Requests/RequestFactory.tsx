@@ -15,6 +15,7 @@ async function request(
 
   const token = await storage.readJwtToken();
   if(token !== null){
+    console.log('Available: ' + token);
     headers['Authorization'] = "Bearer " + token;
   }
 

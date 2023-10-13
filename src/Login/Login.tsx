@@ -93,25 +93,30 @@ class Login extends React.Component<P, S>{
   login = () => {
     const { username, password } = this.state;
     
-    if(username.trim() === ""){
-      log.pop("Type username to login!");
-      return;
-    }
+    // if(username.trim() === ""){
+    //   log.pop("Type username to login!");
+    //   return;
+    // }
 
-    if(password.trim() === ""){
-      log.pop("Type password to login!");
-      return;
-    }
+    // if(password.trim() === ""){
+    //   log.pop("Type password to login!");
+    //   return;
+    // }
+
+    // const user: User = {
+    //   username: username,
+    //   password: password
+    // };
 
     const user: User = {
-      username: username,
-      password: password
+      username: 'test',
+      password: 'test'
     };
 
     const fetchData = async () => {
       this.setState({ isLogging: true })
       try {
-        const response = await request(this.state.baseUrl + '/Login', 'POST', JSON.stringify(user), async () => {
+          const response = await request(this.state.baseUrl + '/Login', 'POST', JSON.stringify(user), async () => {
           const isUpResponse = await request(this.state.baseUrl + '/IsUp', 'GET', undefined, () => {});
 
           if(isUpResponse !== undefined && isUpResponse.ok){
@@ -125,6 +130,7 @@ class Login extends React.Component<P, S>{
           if(response.ok){
             const jsonData: LoginModel = await response.json();
             storage.writeJwtToken(jsonData.token);
+            log.dev(jsonData.token);
             storage.writeUserPrefs(jsonData.user?.userPrefs? jsonData.user?.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
             this.props.isLoggedCallback(true);
 

@@ -313,13 +313,12 @@ const storage = {
   async readJwtToken(){
     try {
       const loginModelJson = await AsyncStorage.getItem(keys.JwtToken);
-    
       if(loginModelJson === null){
         return null;
       }
       else{
         const parsedLoginModel: LoginModel = JSON.parse(loginModelJson);
-        return parsedLoginModel.token;
+        return parsedLoginModel;
       }
     } catch (err) {
       log.error('[readJwtToken] catching reading jwt token.');
