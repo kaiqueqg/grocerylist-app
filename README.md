@@ -9,8 +9,8 @@
 ```
 
 ###### Api address: "http://ip-computer-running-api:5000/api"
-###### username: **test**
-###### password: **test**
+###### username: test
+###### password: test
 
 ## APK
 
