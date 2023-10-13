@@ -12,12 +12,11 @@
 ###### username: test
 ###### password: test
 
+![sample2](https://drive.google.com/uc?export=view&id=1ziQnQ-CnSHTqAM1MnyHlNmJ4sMxLA1D6)
+
 ## APK
 
 [GroceryListApp.apk](https://github.com/kaiqueqg/grocerylist-app/blob/main/apk/GroceryListApp.apk)
 
 ![sample1](https://drive.google.com/uc?export=view&id=1v5HGt54J50h4fmFycvG94AOJ2lF6TlLP)
-
-![sample2](https://drive.google.com/uc?export=view&id=1ziQnQ-CnSHTqAM1MnyHlNmJ4sMxLA1D6)
-
 ![sample3](https://drive.google.com/uc?export=view&id=10zewEc6E2WcOcylfpzBrBoOFjOZGy3D8)
