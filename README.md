@@ -6,7 +6,9 @@
 It was only tested **for now**, on my device with a screen of 1080 x 2280 pixels, 19:9 ratio (~438 ppi density).
 
 Api address: <ip-computer-running-api>:5000/api
+
 username: **test**
+
 password: **test**
 
 ``` diff
