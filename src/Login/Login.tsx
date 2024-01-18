@@ -192,7 +192,7 @@ class Login extends React.Component<P, S>{
           <TextInput placeholder="Username" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} onChangeText={this.handleUsernameChange}></TextInput>
           <TextInput placeholder="Password" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
           {isLogging?
-          <Loading></Loading>
+          <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
           :
           <Pressable style={styles.loginButton} onPress={this.login}>
             <Text style={styles.loginButtonText}>Login</Text>
