@@ -1,5 +1,5 @@
 import React from 'react';
-import { Item, Category, ItemsShown, StorageInfo, UserPrefs } from '../../Types';
+import { Item, Category, ItemsShown, StorageInfo, UserPrefs, User } from '../../Types';
 import ItemRow from '../ItemRow/ItemRow';
 import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput, Keyboard } from 'react-native';
 import colors from '../../Colors';
@@ -7,11 +7,11 @@ import storage from '../../Storage/Storage';
 import log from '../../Log/Log';
 
 interface Props{
+  user: User,
   category: Category,
   items: Item[],
   userPrefs: UserPrefs,
   redrawCallback: () => void,
-  baseUrl: string,
   itemsShown: ItemsShown,
   isLocked: boolean,
   startFocused: boolean,
@@ -36,7 +36,7 @@ class CategoryRow extends React.Component<Props, States>{
     this.state = {
       isEditing: this.props.startFocused,
       isDeleting: false,
-      textValue: this.props.category.text,
+      textValue: this.props.category.Text,
       isSavingText: false,
       isCreatingNewItem: false,
       isRequestingItems: false,
@@ -56,6 +56,7 @@ class CategoryRow extends React.Component<Props, States>{
   }
   
   confirmDeleteCategory = () => {
+    log.dev('confirmDeleteCategory', 'started');
     Alert.alert('', 'Do you really want to delete?', [
       { text: 'NO', onPress: () => { this.setState({ isEditing: false}) }},
       { text: 'YES', onPress: this.deleteCategory }
@@ -63,29 +64,30 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   deleteCategory = async () => {
-    await storage.deleteCategory(this.props.category.id);
+    log.dev('deleteCategory', 'started');
+    await storage.deleteCategory(this.props.category.CategoryId);
     this.props.redrawCallback();
   }
 
   addNewItem = async () => {
-    if(this.props.isLocked){
-      log.pop("List is locked");
-      return;
-    }
+    const { category, user, isLocked } = this.props;
 
-    const { category } = this.props;
+    if(isLocked){ log.pop("List is locked"); return; }
+
+    const itemId = storage.randomId();
+    log.dev('addNewItem', 'itemId: ' + itemId);
     const newItem: Item = {
-      id: storage.randomId(),
-      text: '',
-      isChecked: false,
-      myCategory: category.id === ''? category.text : category.id,
-      goodPrice: '$',
-      quantity: 1,
-      quantityUnit: '',
+      UserIdCategoryId: user.UserId  + category.CategoryId,
+      ItemId: itemId,
+      Text: '',
+      IsChecked: false,
+      GoodPrice: '$',
+      Quantity: 1,
+      QuantityUnit: '',
     };
     await storage.insertItem(newItem);
     this.props.redrawCallback();
-    this.itemIdThatWasJustAdded = newItem.id;
+    this.itemIdThatWasJustAdded = newItem.UserIdCategoryId;
   }
 
   textPress = () => {
@@ -111,8 +113,8 @@ class CategoryRow extends React.Component<Props, States>{
 
     this.props.resetStartFocused();
 
-    if(newText !== category.text) {
-      const newCategory: Category = {...category, text: newText};
+    if(newText !== category.Text) {
+      const newCategory: Category = {...category, Text: newText};
       const info: StorageInfo<Category> = await storage.updateCategory(newCategory);
 
       if(info.ok) {
@@ -129,7 +131,7 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   changeItemsDisplay = async () => {
-    const newCategory: Category = { ...this.props.category, isOpen: !this.props.category.isOpen};
+    const newCategory: Category = { ...this.props.category, IsOpen: !this.props.category.IsOpen};
     await storage.updateCategory(newCategory);
 
     this.props.redrawCallback();
@@ -137,22 +139,22 @@ class CategoryRow extends React.Component<Props, States>{
 
   shoudShowItem = (item: Item) =>{
     const { itemsShown } = this.props;
-    return (itemsShown === ItemsShown.Both || ((item.isChecked && itemsShown === ItemsShown.Checked) || (!item.isChecked && itemsShown === ItemsShown.Unchecked)))
+    return (itemsShown === ItemsShown.Both || ((item.IsChecked && itemsShown === ItemsShown.Checked) || (!item.IsChecked && itemsShown === ItemsShown.Unchecked)))
   }
 
   cancelEdit = () => {
     this.props.resetStartFocused();
-    this.setState({isEditing: false, textValue: this.props.category.text });
+    this.setState({isEditing: false, textValue: this.props.category.Text });
   }
 
   resetStartFocused = () => { this.itemIdThatWasJustAdded = ''; }
 
   render(): React.ReactNode {
-    const { category, items, startFocused } = this.props;
+    const { category, items, startFocused, user } = this.props;
     const { isEditing, textValue } = this.state;
 
     //TODO improve
-    const categoryItems: Item[] = items.filter((item) => {return item.myCategory === category.id});
+    const categoryItems: Item[] = items.filter((item) => {return item.UserIdCategoryId === user.UserId + category.CategoryId});
     const displayItems: Item[] = categoryItems.filter((item) => {return (this.shoudShowItem(item))});
     const shouldDisplay: boolean = categoryItems.length == 0 || (categoryItems.length > 0 && displayItems.length > 0);
 
@@ -165,7 +167,7 @@ class CategoryRow extends React.Component<Props, States>{
               <Image style={styles.trashImage} source={require('../../../public/images/trash.png')}/>
             </Pressable>
             :
-            (category.isOpen ? 
+            (category.IsOpen ? 
               <Pressable onPress={this.changeItemsDisplay}>
                 <Image style={styles.chevronAddImage} source={require('../../../public/images/down-chevron.png')}/>
               </Pressable>
@@ -178,7 +180,7 @@ class CategoryRow extends React.Component<Props, States>{
             <TextInput style={styles.categoryTextInput} value={textValue} autoFocus={true} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
             :
             <Pressable style={styles.pressableRowText} onPress={this.textPress}>
-              <Text style={styles.rowText}>{category.text}</Text>
+              <Text style={styles.rowText}>{category.Text}</Text>
             </Pressable>
           }
           {isEditing?
@@ -195,18 +197,18 @@ class CategoryRow extends React.Component<Props, States>{
               <Image style={styles.chevronAddImage} source={require('../../../public/images/add.png')}/>
             </Pressable>}
         </View>
-        {category.isOpen &&
+        {category.IsOpen &&
             items.map((item: Item, index: number) => (
-              item.myCategory === category.id && 
+              item.UserIdCategoryId === (user.UserId + category.CategoryId) && 
               this.shoudShowItem(item) &&
               <ItemRow 
-                key={'item' + item.id}
+                key={'item' + item.ItemId}
+                user={user}
                 item={item}
-                baseUrl={this.props.baseUrl}
                 redrawCallback={this.props.redrawCallback}
                 isPair={index % 2===0}
                 isLocked={this.props.isLocked}
-                startFocused={this.itemIdThatWasJustAdded === item.id}
+                startFocused={this.itemIdThatWasJustAdded === item.ItemId}
                 resetStartFocused={this.resetStartFocused}
                 userPrefs={this.props.userPrefs}></ItemRow>
             )

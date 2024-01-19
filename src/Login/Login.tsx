@@ -9,15 +9,12 @@ import { LoginModel, User } from "../Types";
 import UserView from "./UserView";
 
 interface P{
-  baseUrl: string,
   isLoggedCallback: (value: boolean) => void,
   userPrefsChanged: () => void,
 }
 
 interface S{
-  baseUrl: string,
-  isEditingBaseUrl: boolean,
-  username: string,
+  email: string,
   password: string,
   isLogging: boolean,
   isLogged: boolean,
@@ -28,9 +25,7 @@ class Login extends React.Component<P, S>{
     super(props);
 
     this.state = {
-      baseUrl: this.props.baseUrl,
-      isEditingBaseUrl: false,
-      username: '',
+      email: '',
       password: '',
       isLogging: false,
       isLogged: false,
@@ -60,7 +55,7 @@ class Login extends React.Component<P, S>{
 
   handleUsernameChange = (value: string) => {
     this.setState({
-      username: value
+      email: value
     });
   }
 
@@ -70,28 +65,8 @@ class Login extends React.Component<P, S>{
     });
   }
 
-  handleBaseUrlChange = (value: string) => {
-    this.setState({
-      baseUrl: value
-    });
-  }
-
-  baseUrlDone = async () => {
-    try {
-      await storage.writeBaseUrl(this.state.baseUrl);
-
-      this.setState({ isEditingBaseUrl: false });
-    } catch (err) {
-      log.pop("Error saving api url!");
-    }
-  }
-
-  baseUrlCancel = () => {
-    this.setState({ isEditingBaseUrl: false, baseUrl: this.props.baseUrl });
-  }
-
   login = () => {
-    const { username, password } = this.state;
+    const { email: username, password: password } = this.state;
     
     // if(username.trim() === ""){
     //   log.pop("Type username to login!");
@@ -108,19 +83,14 @@ class Login extends React.Component<P, S>{
     //   password: password
     // };
 
-    const user: User = {
-      username: 'test',
-      password: 'test'
-    };
-
     const fetchData = async () => {
       this.setState({ isLogging: true })
       try {
-          const response = await request(this.state.baseUrl + '/Login', 'POST', JSON.stringify(user), async () => {
-          const isUpResponse = await request(this.state.baseUrl + '/IsUp', 'GET', undefined, () => {});
+        const response = await request('/Login', 'POST', JSON.stringify({ Email: 'kaiqueqg@gmail.com', Password: 'Senha123!'}), async () => {
+          const isUpResponse = await request('/IsUp', 'GET', undefined, () => {});
 
           if(isUpResponse !== undefined && isUpResponse.ok){
-            log.pop("Server is up but login doesn't!");
+            log.pop("Server is up but login doesn't respond!");
           }
           else{
             log.pop("Server is down!");
@@ -129,20 +99,23 @@ class Login extends React.Component<P, S>{
         if(response !== undefined) {
           if(response.ok){
             const jsonData: LoginModel = await response.json();
-            storage.writeJwtToken(jsonData.token);
-            log.dev(jsonData.token);
-            storage.writeUserPrefs(jsonData.user?.userPrefs? jsonData.user?.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
+
+            storage.writeJwtToken(jsonData.Token);
+            storage.writeUserPrefs(jsonData.User?.userPrefs? jsonData.User?.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
             this.props.isLoggedCallback(true);
 
             this.setState({ isLogged: true});
           }
         }
+        else{
+          log.dev('[fetchData]', 'response is indefined? ' + (response === undefined? 'undefined': 'not'));
+        }
       } catch (error) {
-        log.error('[fetchData] Error: ' + error);
+        log.err('[fetchData]', error);
       }
       setTimeout(() => {
-      this.setState({ isLogging: false });
-    }, 1000); 
+        this.setState({ isLogging: false });
+      }, 1000); 
     };
     fetchData();
   }
@@ -155,12 +128,8 @@ class Login extends React.Component<P, S>{
     this.setState({ isLogged: false });
   }
 
-  baseUrlEdit = () => {
-    this.setState({ isEditingBaseUrl: true });
-  }
-
   render(): React.ReactNode {
-    const { isLogged, isLogging, baseUrl, isEditingBaseUrl } = this.state;
+    const { isLogged, isLogging } = this.state;
 
     return(
       <View style={styles.loggingContainer}>
@@ -171,24 +140,6 @@ class Login extends React.Component<P, S>{
           <Text style={styles.grocerylistText}>
             GROCERY LIST
           </Text>
-          {isEditingBaseUrl?
-            <View style={styles.baseUrlTextInputContainer}>
-              <TextInput style={styles.baseUrlTextInput} value={this.state.baseUrl} placeholder={this.props.baseUrl} placeholderTextColor={colors.placeholderTextColor} onChangeText={this.handleBaseUrlChange} onSubmitEditing={this.baseUrlDone}></TextInput>
-              <Pressable style={styles.baseUrlDoneCancelButton} onPress={this.baseUrlDone}>
-                <Image style={styles.baseUrlDoneCancelImage} source={require('../../public/images/done.png')}></Image>
-              </Pressable>
-              <Pressable style={styles.baseUrlDoneCancelButton} onPress={this.baseUrlCancel}>
-                <Image style={styles.baseUrlDoneCancelImage} source={require('../../public/images/cancel.png')}></Image>
-              </Pressable>
-            </View>
-            :
-            <View style={styles.baseUrlTextInputContainer}>
-              <Text style={styles.baseUrlText}>{baseUrl}</Text>
-              <Pressable style={styles.baseUrlEditButton} onPress={this.baseUrlEdit}>
-                <Image style={styles.baseUrlEditImage} source={require('../../public/images/edit.png')}></Image>
-              </Pressable>
-            </View>
-          }
           <TextInput placeholder="Username" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} onChangeText={this.handleUsernameChange}></TextInput>
           <TextInput placeholder="Password" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
           {isLogging?

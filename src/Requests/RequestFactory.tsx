@@ -15,7 +15,6 @@ async function request(
 
   const token = await storage.readJwtToken();
   if(token !== null){
-    console.log('Available: ' + token);
     headers['Authorization'] = "Bearer " + token;
   }
 
@@ -29,7 +28,9 @@ async function request(
   }, 2000);
 
   try {
-    const response = await fetch(endpoint, { headers, method, mode: 'cors', body: body, signal });
+    log.pop(endpoint);
+    log.pop(JSON.stringify(body));
+    const response = await fetch('https://i3bgx2ymof.execute-api.sa-east-1.amazonaws.com/dev' + endpoint, { headers, method, mode: 'cors', body: body, signal });
 
     //Don't need to abort it.
     clearTimeout(timeoutId);

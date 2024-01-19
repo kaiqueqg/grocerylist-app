@@ -1,6 +1,6 @@
 import React from 'react';
-import { GroceryList, Category, ItemsShown, Item, UserPrefs } from '../Types';
-import { StyleSheet, View, Text, Image, ScrollView, Pressable, ImageStyle, FlatList, } from 'react-native';
+import { GroceryList, Category, ItemsShown, Item, UserPrefs, User } from '../Types';
+import { StyleSheet, View, Text, Image, ScrollView, Pressable, ImageStyle, FlatList, Alert, } from 'react-native';
 import CategoryRow from './CategoryRow/CategoryRow';
 import request from '../Requests/RequestFactory';
 import colors from '../Colors';
@@ -11,7 +11,7 @@ import log from '../Log/Log';
 import PressImage from '../PressImage/PressImage';
 
 interface P{
-  baseUrl: string,
+  user: User,
   userPrefs: UserPrefs,
   isLogged: boolean,
   isLoggedCallback: (value: boolean) => void,
@@ -20,7 +20,6 @@ interface P{
 
 interface S{
   data: GroceryList,
-  userPrefs: UserPrefs,
   isServerUp: boolean,
   isTestingServerUp: boolean,
   itemsShown: ItemsShown,
@@ -43,7 +42,6 @@ class Table extends React.Component<P, S> {
 
     this.state = {
       data: { categories: [], items: [], deletedCategories: [], deletedItems: [] },
-      userPrefs: {hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false},
       isServerUp: true,
       isTestingServerUp: false,
       itemsShown: ItemsShown.Both,
@@ -60,6 +58,7 @@ class Table extends React.Component<P, S> {
   }
 
   componentDidMount(): void {
+    //storage.deleteGroceryList();
     this.readGroceryList();
   }
 
@@ -71,7 +70,7 @@ class Table extends React.Component<P, S> {
     this.setState({
       isTestingServerUp: true
     }, async () => {
-        const response = await request(this.props.baseUrl + '/IsUp', 'GET', undefined, () => {
+        const response = await request('/IsUp', 'GET', undefined, () => {
 
         log.pop('Server is down!');
         setTimeout(() => {
@@ -88,6 +87,7 @@ class Table extends React.Component<P, S> {
 
   readGroceryList = async () => {
     const data = await storage.readGroceryList();
+    log.dev('readGroceryList', 'data ', data);
     if(data != null){
       this.setState({
         data
@@ -103,25 +103,27 @@ class Table extends React.Component<P, S> {
     this.setState({isLoggingIn: !this.state.isLoggingIn});
   }
 
-  uploadGroceryList = async () => {
+  syncGroceryList = async () => {
     this.setState({
       isUploading: true
     }, async () => {
       const data: GroceryList|null = await storage.readGroceryList();
       const deletedCategories: Category[]|null = await storage.readDeletedCategory();
       const deletedItems: Item[]|null = await storage.readDeletedItems();
+
       if(data !== null && deletedCategories !== null && deletedItems !== null) {
         const uploadData: GroceryList = {...data, deletedCategories: deletedCategories, deletedItems: deletedItems};
 
-        const response = await request(this.props.baseUrl + '/SyncGroceryList', 'PUT', JSON.stringify(uploadData), async () => {
+        const response = await request('/SyncGroceryList', 'PUT', JSON.stringify(uploadData), async () => {
           this.setState({ isUploading: false });
-          const response = await request(this.props.baseUrl + '/IsUp', 'GET', undefined, () => {
+          const response = await request('/IsUp', 'GET', undefined, () => {
             log.pop('Server is down!');
             this.setState({ isServerUp: false });
           });
         });
   
         if(response !== undefined && response.ok){
+          log.dev('uploadGroceryList' ,'response: ' + JSON.stringify(response));
           const data: GroceryList = await response.json();
           storage.writeGroceryList(data);
           storage.deleteDeletedCategories();
@@ -137,17 +139,20 @@ class Table extends React.Component<P, S> {
             }, 2000);
           }, 500);
         }
+        else{
+          log.dev('uploadGroceryList', 'response: ' + JSON.stringify(response));
+        }
       }
     });
   }
 
-  downloadGroceryList = async () => {
+  getGroceryList = async () => {
     this.setState({
       isDownloading: true
     }, async () => {
-      const response = await request(this.props.baseUrl + '/GetGroceryList', 'GET', undefined, async () => {
+      const response = await request('/GetGroceryList', 'GET', undefined, async () => {
         this.setState({ isDownloading: false });
-        const response = await request(this.props.baseUrl + '/IsUp', 'GET', undefined, () => {
+        const response = await request('/IsUp', 'GET', undefined, () => {
           log.pop('Server is down!');
           this.setState({ isServerUp: false });
         });
@@ -155,6 +160,7 @@ class Table extends React.Component<P, S> {
       
       if(response !== undefined && response.ok){
         const data: GroceryList = await response.json();
+        log.dev('getGroceryList', 'downloaded data: ', data);
         storage.writeGroceryList(data);
 
         setTimeout(() => {
@@ -171,34 +177,38 @@ class Table extends React.Component<P, S> {
   }
 
   addNewCategory = async () => {
-    if(this.state.isLocked){
+    const { user } = this.props;
+    const { isLocked } = this.state;
+
+    if(isLocked){
       log.pop("List is locked");
       return;
     }
 
     const categoryId = storage.randomId();
     let newCategory: Category = {
-      id: categoryId,
-      text: '',
-      isOpen: true,
+      UserId: user.UserId,
+      CategoryId: categoryId,
+      Text: '',
+      IsOpen: true,
     }
     await storage.insertCategory(newCategory);
 
     if(this.props.userPrefs.shouldCreateNewItemWhenCreateNewCategory) {
       const newItem: Item = {
-        id: storage.randomId(),
-        text: '',
-        isChecked: false,
-        myCategory: categoryId,
-        goodPrice: '$',
-        quantity: 1,
-        quantityUnit: '',
+        UserIdCategoryId: user.UserId + newCategory.CategoryId,
+        ItemId: storage.randomId(),
+        Text: '',
+        IsChecked: false,
+        GoodPrice: '$',
+        Quantity: 1,
+        QuantityUnit: '',
       };
       await storage.insertItem(newItem);
     }
 
     this.readGroceryList();
-    this.categoryIdThatWasJustAdded = newCategory.id;
+    this.categoryIdThatWasJustAdded = newCategory.CategoryId;
   }
 
   redrawCallback = async () => {
@@ -220,8 +230,16 @@ class Table extends React.Component<P, S> {
     this.setState({ showingInfo: !this.state.showingInfo})
   }
 
+  devConfirmDeleteAll = async () => {
+    Alert.alert('', 'Do you really want to delete?', [
+      { text: 'NO', onPress: () => { return }},
+      { text: 'YES', onPress: this.devDeleteAll }
+    ]);
+    
+  }
+
   devDeleteAll = async () => {
-    const newData = {categories: [], items: []};
+    const newData = {categories: [], items: [], deletedCategories: [], deletedItems: []};
     await storage.writeGroceryList(newData);
     this.setState({
       data: newData
@@ -254,27 +272,27 @@ class Table extends React.Component<P, S> {
     return(
       <View style={styles.tableContainer}>
         {isLoggingIn?
-          <Login baseUrl={this.props.baseUrl} isLoggedCallback={this.props.isLoggedCallback} userPrefsChanged={this.props.userPrefsChanged}></Login>
+          <Login isLoggedCallback={this.props.isLoggedCallback} userPrefsChanged={this.props.userPrefsChanged}></Login>
           :
           <View style={{flex: 1,}}>
             <View style={styles.tableHeaderContainer}>
               <Image style={[styles.tableHeaderImage, {opacity: 0}]} source={require('../../public/images/doubledown-chevron.png')}/>
-              <Text style={styles.tableHeaderText}>GROCERY LIST</Text>
+              <Text style={styles.tableHeaderText} onPress={this.devConfirmDeleteAll}>GROCERY LIST</Text>
               <PressImage style={styles.tableHeaderImage} source={require('../../public/images/add.png')} onPress={this.addNewCategory}></PressImage>
             </View>
             <View style={styles.tableBodyContainer}>
               <FlatList data={data.categories} renderItem={({item: category}) => (
                 <CategoryRow
-                  key={'category' + category.id}
+                  key={'category' + category.CategoryId}
                   category={category} 
-                  items={ data.items.filter((item) => {return item.myCategory === category.id}) }
+                  items={ data.items.filter((item) => {return item.UserIdCategoryId.slice(-40) === category.CategoryId}) }
                   redrawCallback={this.redrawCallback} 
-                  baseUrl={this.props.baseUrl} 
                   itemsShown={itemsShown}
                   isLocked={isLocked}
-                  startFocused={this.categoryIdThatWasJustAdded === category.id}
+                  startFocused={this.categoryIdThatWasJustAdded === category.CategoryId}
                   resetStartFocused={this.resetStartFocused}
-                  userPrefs={this.props.userPrefs}></CategoryRow>
+                  userPrefs={this.props.userPrefs}
+                  user={this.props.user}></CategoryRow>
               )}></FlatList>
             </View>
           </View>
@@ -288,14 +306,14 @@ class Table extends React.Component<P, S> {
                     <PressImage style={[styles.bottomImage, {tintColor: this.props.isLogged? colors.green : colors.red}]} source={require('../../public/images/user.png')} onPress={this.user}></PressImage>
                     {this.props.isLogged && this.state.isServerUp?
                       <React.Fragment>
-                        <Pressable onPress={this.uploadGroceryList}>
+                        <Pressable onPress={this.syncGroceryList}>
                         {isUploading?
                           <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
                           :
                           <Image style={[styles.bottomImage, {tintColor: doneUpload? colors.green:colors.beige}]} source={require('../../public/images/upload.png')}></Image>
                         }
                         </Pressable>
-                        <Pressable onPress={this.downloadGroceryList}>
+                        <Pressable onPress={this.getGroceryList}>
                           {isDownloading? 
                             <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
                             :

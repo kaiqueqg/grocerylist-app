@@ -3,7 +3,8 @@ import { StyleSheet, View, StatusBar} from 'react-native';
 import Table from './src/Table/Table';
 import colors from './src/Colors';
 import storage from './src/Storage/Storage';
-import { UserPrefs } from './src/Types';
+import { User, UserPrefs } from './src/Types';
+import log from './src/Log/Log';
 
 interface Props{
 }
@@ -11,8 +12,9 @@ interface Props{
 interface States{
   isLogged: boolean,
   isServerUp: boolean,
-  baseUrl: string,
   userPrefs: UserPrefs,
+  user: User,
+  token: string | null,
 }
 
 class App extends React.Component<Props, States>{
@@ -22,13 +24,24 @@ class App extends React.Component<Props, States>{
     this.state = {
       isLogged: false,
       isServerUp: true,
-      baseUrl: '',
-      userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false}
+      user: { 
+        UserId: storage.randomId(),
+        Email: 'fake@fake.com',
+        Username: 'Fake',
+        Password: 'Fake',
+        Role: 'Admin',
+        Status: 'Active',
+        userPrefs: {
+          hideQuantity: true,
+          shouldCreateNewItemWhenCreateNewCategory: false
+        },
+      },
+      userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false},
+      token: null,
     }
   }
 
   componentDidMount(): void {
-    this.loadBaseUrl();
     this.loadLogin();
     this.loadUserPrefs();
   }
@@ -41,30 +54,12 @@ class App extends React.Component<Props, States>{
     try {
       const token = await storage.readJwtToken();
       this.setState({
+        token: token,
         isLogged: token !== null
       });
    } catch (err) {
-     console.error('Error loading login: ', err);
+     log.err('loadLogin', err);
    }
-  }
-
-  loadBaseUrl = async () => {
-    try {
-       const baseUrlFromKey = await storage.readBaseUrl();
-       if(baseUrlFromKey === null){
-        storage.writeBaseUrl('http://localhost:5000/api');
-        this.setState({
-          baseUrl: 'http://localhost:5000/api'
-        });
-       }
-       else{
-        this.setState({
-          baseUrl: baseUrlFromKey
-        });
-       }
-    } catch (err) {
-      console.error('Error loading base url: ', err);
-    }
   }
 
   loadUserPrefs = async () => {
@@ -82,7 +77,7 @@ class App extends React.Component<Props, States>{
        });
       }
    } catch (err) {
-     console.error('Error loading user preferences: ', err);
+     log.err('loadUserPrefs', 'Error loading user preferences: ', err);
    }
   }
 
@@ -93,11 +88,11 @@ class App extends React.Component<Props, States>{
   }
 
   render(): React.ReactNode {
-    const { isLogged, baseUrl, userPrefs } = this.state;
+    const { isLogged, userPrefs, user } = this.state;
 
     return(
       <View style={styles.container}>
-        <Table baseUrl={baseUrl} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback} userPrefs={userPrefs} userPrefsChanged={this.userPrefsChanged}></Table>
+        <Table user={user} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback} userPrefs={userPrefs} userPrefsChanged={this.userPrefsChanged}></Table>
         <StatusBar backgroundColor={colors.bluedark} barStyle="light-content"/>
       </View>
     )
