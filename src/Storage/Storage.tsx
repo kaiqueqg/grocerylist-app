@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import log from "../Log/Log";
-import { Category, GroceryList, Item, LoginModel, StorageInfo, UserPrefs } from "../Types";
+import { Category, GroceryList, Item, LoginModel, StorageInfo, User, UserPrefs } from "../Types";
 
 type StorageKeys = {
   JwtToken: string,
@@ -8,6 +8,7 @@ type StorageKeys = {
   BaseUrl: string,
   DeletedItems: string,
   DeletedCategories: string,
+  User: string,
   UserPrefs: string,
 };
 
@@ -17,6 +18,7 @@ const keys: StorageKeys = {
   BaseUrl: '@grocerylistapp:baseurl',
   DeletedItems: '@grocerylistapp:deleteditems',
   DeletedCategories: '@grocerylistapp:deletedcategories',
+  User: '@grocerylistapp:user',
   UserPrefs: '@grocerylistapp:userprefs',
 };
 
@@ -25,51 +27,95 @@ const storage = {
   randomId(){
     const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let randomString = "";
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 40; i++) {
       const randomIndex = Math.floor(Math.random() * charset.length);
       randomString += charset.charAt(randomIndex);
     }
     return randomString;
   },
 
+  async writeUser(user: User){
+    try {
+      await AsyncStorage.setItem(keys.User, JSON.stringify(user));
+    } catch (err) {
+      log.err('writeUser', 'catch] writing user.');
+      return null;
+    }
+  },
+
+  async readUser(){
+    try {
+      const user = await AsyncStorage.getItem(keys.User);
+      if(user !== null){
+        try {
+          const parsedUser: User = JSON.parse(user);
+          return parsedUser;
+        } catch (err) {
+          log.err('readUser', 'Error parsing json');
+        }
+      }
+      log.dev('readUser', 'returning null')
+      return null;
+    } catch (err) {
+      log.err('readUser', '[catch] reading user.');
+      return null;
+    }
+  },
+
+  async deleteUser(){
+    try {
+      await AsyncStorage.removeItem(keys.User);
+    } catch (error) {
+      log.err('deleteUser', '[catch] deleting user.');
+    }
+  },
+
   async writeGroceryList(data: GroceryList){
     try {
       await AsyncStorage.setItem(keys.GroceryList, JSON.stringify(data));
     } catch (err) {
-      log.error('[writeGroceryList] catching writing grocery list.');
+      log.err('writeGroceryList', '[catch] writing grocery list.');
       return null;
     }
   },
   
   async readGroceryList(){
     try {
-      const data = await AsyncStorage.getItem('@grocerylistapp:data');
-    
+      const data = await AsyncStorage.getItem(keys.GroceryList);
       if(data !== null){
         try {
           const parsedData: GroceryList = JSON.parse(data);
           return parsedData;
         } catch (err) {
-          log.error('[readGroceryList] Error parsing json');
+          log.err('readGroceryList', 'Error parsing json');
         }
       }
-      log.dev('[readGroceryList] returning null')
       return null;
     } catch (err) {
-      log.error('[readGroceryList] catching reading grocery list.');
+      log.err('readGroceryList', '[catch] reading grocery list.');
       return null;
     }
   },
 
-  async readItemsOnCategory(id: string){
+  async deleteGroceryList(){
+    try {
+      await AsyncStorage.removeItem(keys.GroceryList);
+    } catch (error) {
+      log.err('deleteGroceryList', '[catch] deleting grocery list.');
+    }
+  },
+
+  async readItemsOnCategory(userIdCategoryId: string){
     const data: GroceryList|null = await this.readGroceryList();
     if(data !== null) {
       let items: Item[] = [];
-      data.items.map((item) => { 
-        if(item.myCategory === id) {
-          items = [...items, item];
-        }
-      });
+      if(data.items !== null){
+        data.items.map((item) => { 
+          if(item.UserIdCategoryId === userIdCategoryId) {
+            items = [...items, item];
+          }
+        });
+      }
       return items;
     }
   },
@@ -77,9 +123,10 @@ const storage = {
   async getItemWithSameText(item: Item){
     const data: GroceryList|null = await this.readGroceryList();
 
-    if(data !== null) return data.items.find((i: Item) => 
+    if(data !== null && data.items !== null) 
+      return data.items.find((i: Item) => 
     { 
-      return i.id !== item.id && i.text === item.text && i.myCategory === item.myCategory
+      return i.ItemId !== item.ItemId && i.Text === item.Text && i.UserIdCategoryId === item.UserIdCategoryId
     });
     return undefined;
   },
@@ -87,33 +134,18 @@ const storage = {
   async insertItem(item: Item){
     const data: GroceryList|null = await this.readGroceryList();
 
-    if(data !== null){
-      let uniqueItem: Item[] = data.items.filter((i) => i.text === item.text && i.id != item.id && i.myCategory === item.myCategory);
-
-      if(uniqueItem.length === 0){
-        data.items.push(item);
-        this.writeGroceryList(data);
-      }
-      else{
-        log.pop('Item already exist!');
-        return uniqueItem[0];
-      }
+    if(data !== null && data.items !== null){
+      data.items.push(item);
+      this.writeGroceryList(data);
     }
   },
 
   async insertCategory(category: Category){
     const data: GroceryList|null = await  this.readGroceryList();
 
-    if(data !== null){
-      let uniqueCategory: Category[] = data.categories.filter((c) => c.text === category.text && c.id != category.id);
-
-      if(uniqueCategory.length === 0){
-        data.categories.unshift(category);
-        this.writeGroceryList(data);
-      }
-      else{
-        log.pop('Category already exist!');
-      }
+    if(data !== null && data.categories !== null){
+      data.categories.unshift(category);
+      this.writeGroceryList(data);
     }
   },
 
@@ -121,25 +153,20 @@ const storage = {
     const data: GroceryList|null = await this.readGroceryList();
     let info: StorageInfo<Category> = { ok: false };
 
-    if(data !== null){
-      let uniqueCategory: Category[] = data.categories.filter((c) => c.text === category.text && c.id != category.id);
+    if(data !== null && data.categories !== null){
+      let uniqueCategory: Category[] = data.categories.filter((c) => c.Text === category.Text && c.CategoryId != category.CategoryId);
 
-      if(uniqueCategory.length === 0){
-        const newData = data.categories.map((c) => {
-          if(c.id === category.id){
-            return category;
-          }
-          else{
-            return c;
-          }
-        });
+      const newData = data.categories.map((c) => {
+        if(c.CategoryId === category.CategoryId){
+          return category;
+        }
+        else{
+          return c;
+        }
+      });
 
-        this.writeGroceryList({...data, categories: newData });
-        info = { ok: true };
-      }
-      else{
-        info = { ok: false, msg: 'Category already exist!'};
-      }
+      this.writeGroceryList({...data, categories: newData });
+      info = { ok: true };
     }
 
     return info;
@@ -148,23 +175,16 @@ const storage = {
   async updateItem(item: Item){
     const data: GroceryList|null = await this.readGroceryList();
 
-    if(data !== null){
-      let uniqueItem: Item[] = data.items.filter((i) => i.text === item.text && i.id != item.id && i.myCategory === item.myCategory);
-
-      if(uniqueItem.length === 0){
-        const newData = data.items.map((i) => {
-          if(i.id == item.id){
-            return item;
-          }
-          else{
-            return i;
-          }
-        });
-        this.writeGroceryList({...data, items: newData});
-      }
-      else{
-        log.pop('Item already exist!');
-      }
+    if(data !== null && data.items !== null){
+      const newData = data.items.map((i) => {
+        if(i.ItemId == item.ItemId){
+          return item;
+        }
+        else{
+          return i;
+        }
+      });
+      this.writeGroceryList({...data, items: newData});
     }
   },
 
@@ -172,7 +192,7 @@ const storage = {
     try {
       await AsyncStorage.setItem(keys.DeletedItems, JSON.stringify(items));
     } catch (err) {
-      log.error('[writeDeletedItems] catching writing grocery list.');
+      log.err('writeDeletedItems', 'catching writing grocery list.');
       return null;
     }
   },
@@ -186,12 +206,12 @@ const storage = {
           const parsedData: Item[] = JSON.parse(data);
           return parsedData;
         } catch (err) {
-          log.error('[readDeletedItems] Error parsing json');
+          log.err('readDeletedItems', 'Error parsing json');
         }
       }
       return [];
     } catch (err) {
-      log.error('[readDeletedItems] catching reading deleted items.');
+      log.err('readDeletedItems', '[catch] reading deleted items.');
       return null;
     }
   },
@@ -200,7 +220,7 @@ const storage = {
     try {
       await AsyncStorage.setItem(keys.DeletedCategories, JSON.stringify(categories));
     } catch (err) {
-      log.error('[writeDeletedCategory] catching writing grocery list.');
+      log.err('writeDeletedCategory', '[catch] writing grocery list.');
       return null;
     }
   },
@@ -214,12 +234,12 @@ const storage = {
           const parsedData: Category[] = JSON.parse(data);
           return parsedData;
         } catch (err) {
-          log.error('[readDeletedCategory] Error parsing json');
+          log.err('readDeletedCategory', 'Error parsing json');
         }
       }
       return [];
     } catch (err) {
-      log.error('[readDeletedCategory] catching reading deleted categories.');
+      log.err('readDeletedCategory', '[catch] reading deleted categories.');
       return null;
     }
   },
@@ -228,7 +248,7 @@ const storage = {
     try {
       await AsyncStorage.removeItem(keys.DeletedCategories);
     } catch (error) {
-      log.error('[deleteDeletedCategories] catching deleting deleted categories.');
+      log.err('deleteDeletedCategories', '[catch] deleting deleted categories.');
     }
   },
 
@@ -236,7 +256,7 @@ const storage = {
     try {
       await AsyncStorage.removeItem(keys.DeletedItems);
     } catch (error) {
-      log.error('[deleteDeletedItems] catching deleting deleted items.');
+      log.err('deleteDeletedItems', '[catch] deleting deleted items.');
     }
   },
 
@@ -244,8 +264,8 @@ const storage = {
     const data: GroceryList|null = await this.readGroceryList();
     const deletedCategories: Category[]|null = await this.readDeletedCategory();
 
-    if (data !== null) {
-      const categoriesToBeDeleted: Category|undefined = data.categories.find((i) => i.id === categoryId);
+    if (data !== null && data.categories !== null) {
+      const categoriesToBeDeleted: Category|undefined = data.categories.find((i) => i.CategoryId === categoryId);
 
       if(categoriesToBeDeleted !== undefined){
         if(deletedCategories !== null) {
@@ -253,7 +273,7 @@ const storage = {
           this.writeDeletedCategories(deletedCategories);
         }
 
-        const newData = data.categories.filter((category) => category.id !== categoriesToBeDeleted.id);
+        const newData = data.categories.filter((category) => category.CategoryId !== categoriesToBeDeleted.CategoryId);
         this.writeGroceryList({ ...data, categories: newData });
       }
     }
@@ -263,65 +283,45 @@ const storage = {
     const data: GroceryList|null = await this.readGroceryList();
     const deletedItems: Item[]|null = await this.readDeletedItems();
 
-    if (data !== null) {
-      const itemToBeDeleted: Item|undefined = data.items.find((i) => i.id === itemId);
+    if (data !== null && data.items !== null) {
+      const itemToBeDeleted: Item|undefined = data.items.find((i) => i.ItemId === itemId);
 
       if(itemToBeDeleted !== undefined){
         if(deletedItems !== null) {
           deletedItems.push(itemToBeDeleted);
           this.writeDeletedItems(deletedItems);
+          log.dev('deleteItem', 'item pushed', itemToBeDeleted);
         }
 
-        const newData = data.items.filter((item) => item.id !== itemToBeDeleted.id);
+        const newData = data.items.filter((item) => item.ItemId !== itemToBeDeleted.ItemId);
         this.writeGroceryList({ ...data, items: newData });
       }
-    }
-  },
-  
-  async writeBaseUrl(baseUrl: string){
-    await AsyncStorage.setItem(keys.BaseUrl, JSON.stringify(baseUrl));
-  },
-  
-  async readBaseUrl(){
-    try {
-      const baseUrl = await AsyncStorage.getItem(keys.BaseUrl);
-    
-      if(baseUrl === null){
-        log.dev('[readBaseUrl] no base url, setting default');
-        return 'http://localhost:5000/api';
-      }
       else{
-        const parsedBaseUrl: string = JSON.parse(baseUrl);
-        return parsedBaseUrl;
+        log.dev('deleteItem', `can't find item: `, itemId);
       }
-    } catch (err) {
-      log.error('[readBaseUrl] catching reading base url.');
-      log.pop('Error reading base url.');
-      return 'http://localhost:5000/api';
     }
   },
   
   async writeJwtToken(token: string){
     try {
-      await AsyncStorage.setItem(keys.JwtToken, JSON.stringify(token));
+      await AsyncStorage.setItem(keys.JwtToken, token);
     } catch (err) {
-      log.error('[readJwtToken] catching writing jwt token.');
+      log.dev('writeJwtToken', '[catch] error: ' + err);
       log.pop('Error getting saved login info.');
     }
   },
   
   async readJwtToken(){
     try {
-      const loginModelJson = await AsyncStorage.getItem(keys.JwtToken);
-      if(loginModelJson === null){
+      const token = await AsyncStorage.getItem(keys.JwtToken);
+      if(token === null){
         return null;
       }
       else{
-        const parsedLoginModel: LoginModel = JSON.parse(loginModelJson);
-        return parsedLoginModel;
+        return token;
       }
     } catch (err) {
-      log.error('[readJwtToken] catching reading jwt token.');
+      log.war('readJwtToken', '[catch] error: ' + err);
       return null
     }
   },
@@ -330,7 +330,7 @@ const storage = {
     try {
       await AsyncStorage.removeItem(keys.JwtToken);
     } catch (error) {
-      log.error('[readJwtToken] catching deleting jwt token.');
+      log.err('readJwtToken', '[catch] deleting jwt token.');
     }
   },
 
@@ -338,7 +338,7 @@ const storage = {
     try{
       await AsyncStorage.setItem(keys.UserPrefs, JSON.stringify(userPrefs));
     } catch (err){
-      log.error('[writeUserPrefs] catching writing user prefs.');
+      log.err('writeUserPrefs', '[catch] writing user prefs.');
       log.pop('Error getting user preferences.');
     }
   },
@@ -355,7 +355,7 @@ const storage = {
         return parsedUserPrefs;
       }
     } catch (err) {
-      log.error('[readJwtToken] catching reading jwt token.');
+      log.err('readJwtToken', '[catch] reading jwt token.');
       return null
     }
   },

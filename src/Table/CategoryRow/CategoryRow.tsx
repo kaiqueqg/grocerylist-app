@@ -1,5 +1,5 @@
 import React from 'react';
-import { Item, Category, ItemsShown, StorageInfo, UserPrefs } from '../../Types';
+import { Item, Category, ItemsShown, StorageInfo, UserPrefs, User } from '../../Types';
 import ItemRow from '../ItemRow/ItemRow';
 import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput, Keyboard } from 'react-native';
 import colors from '../../Colors';
@@ -9,9 +9,9 @@ import log from '../../Log/Log';
 interface Props{
   category: Category,
   items: Item[],
+  user: User,
   userPrefs: UserPrefs,
   redrawCallback: () => void,
-  baseUrl: string,
   itemsShown: ItemsShown,
   isLocked: boolean,
   startFocused: boolean,
@@ -36,7 +36,7 @@ class CategoryRow extends React.Component<Props, States>{
     this.state = {
       isEditing: this.props.startFocused,
       isDeleting: false,
-      textValue: this.props.category.text,
+      textValue: this.props.category.Text,
       isSavingText: false,
       isCreatingNewItem: false,
       isRequestingItems: false,
@@ -63,29 +63,28 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   deleteCategory = async () => {
-    await storage.deleteCategory(this.props.category.id);
+    await storage.deleteCategory(this.props.category.CategoryId);
     this.props.redrawCallback();
   }
 
   addNewItem = async () => {
-    if(this.props.isLocked){
-      log.pop("List is locked");
-      return;
-    }
+    const { category, isLocked, user } = this.props;
 
-    const { category } = this.props;
+    if(isLocked){ log.pop("List is locked"); return; }
+
+    const itemId = storage.randomId();
     const newItem: Item = {
-      id: storage.randomId(),
-      text: '',
-      isChecked: false,
-      myCategory: category.id === ''? category.text : category.id,
-      goodPrice: '$',
-      quantity: 1,
-      quantityUnit: '',
+      UserIdCategoryId: user.UserId  + category.CategoryId,
+      ItemId: itemId,
+      Text: '',
+      IsChecked: false,
+      GoodPrice: '$',
+      Quantity: 1,
+      QuantityUnit: '',
     };
     await storage.insertItem(newItem);
     this.props.redrawCallback();
-    this.itemIdThatWasJustAdded = newItem.id;
+    this.itemIdThatWasJustAdded = newItem.UserIdCategoryId;
   }
 
   textPress = () => {
@@ -111,8 +110,8 @@ class CategoryRow extends React.Component<Props, States>{
 
     this.props.resetStartFocused();
 
-    if(newText !== category.text) {
-      const newCategory: Category = {...category, text: newText};
+    if(newText !== category.Text) {
+      const newCategory: Category = {...category, Text: newText};
       const info: StorageInfo<Category> = await storage.updateCategory(newCategory);
 
       if(info.ok) {
@@ -129,31 +128,36 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   changeItemsDisplay = async () => {
-    const newCategory: Category = { ...this.props.category, isOpen: !this.props.category.isOpen};
+    const newCategory: Category = { ...this.props.category, IsOpen: !this.props.category.IsOpen};
     await storage.updateCategory(newCategory);
 
     this.props.redrawCallback();
   }
 
-  shoudShowItem = (item: Item) =>{
+  shouldShowItem = (item: Item) =>{
     const { itemsShown } = this.props;
-    return (itemsShown === ItemsShown.Both || ((item.isChecked && itemsShown === ItemsShown.Checked) || (!item.isChecked && itemsShown === ItemsShown.Unchecked)))
+    const value = (itemsShown === ItemsShown.Both || ((item.IsChecked && itemsShown === ItemsShown.Checked) || (!item.IsChecked && itemsShown === ItemsShown.Unchecked)));
+    return value;
   }
 
   cancelEdit = () => {
     this.props.resetStartFocused();
-    this.setState({isEditing: false, textValue: this.props.category.text });
+    this.setState({isEditing: false, textValue: this.props.category.Text });
   }
 
   resetStartFocused = () => { this.itemIdThatWasJustAdded = ''; }
 
+  read = async () => { return await storage.readUser(); }
+
   render(): React.ReactNode {
-    const { category, items, startFocused } = this.props;
+    const { category, items, startFocused, user } = this.props;
     const { isEditing, textValue } = this.state;
 
     //TODO improve
-    const categoryItems: Item[] = items.filter((item) => {return item.myCategory === category.id});
-    const displayItems: Item[] = categoryItems.filter((item) => {return (this.shoudShowItem(item))});
+    const categoryItems: Item[] = items.filter((item) => {
+      return item.UserIdCategoryId === user.UserId + category.CategoryId;
+    });
+    const displayItems: Item[] = categoryItems.filter((item) => {return (this.shouldShowItem(item))});
     const shouldDisplay: boolean = categoryItems.length == 0 || (categoryItems.length > 0 && displayItems.length > 0);
 
     return(
@@ -165,7 +169,7 @@ class CategoryRow extends React.Component<Props, States>{
               <Image style={styles.trashImage} source={require('../../../public/images/trash.png')}/>
             </Pressable>
             :
-            (category.isOpen ? 
+            (category.IsOpen ? 
               <Pressable onPress={this.changeItemsDisplay}>
                 <Image style={styles.chevronAddImage} source={require('../../../public/images/down-chevron.png')}/>
               </Pressable>
@@ -178,7 +182,7 @@ class CategoryRow extends React.Component<Props, States>{
             <TextInput style={styles.categoryTextInput} value={textValue} autoFocus={true} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
             :
             <Pressable style={styles.pressableRowText} onPress={this.textPress}>
-              <Text style={styles.rowText}>{category.text}</Text>
+              <Text style={styles.rowText}>{category.Text}</Text>
             </Pressable>
           }
           {isEditing?
@@ -195,18 +199,18 @@ class CategoryRow extends React.Component<Props, States>{
               <Image style={styles.chevronAddImage} source={require('../../../public/images/add.png')}/>
             </Pressable>}
         </View>
-        {category.isOpen &&
+        {category.IsOpen &&
             items.map((item: Item, index: number) => (
-              item.myCategory === category.id && 
-              this.shoudShowItem(item) &&
+              item.UserIdCategoryId === (user.UserId + category.CategoryId) && 
+              this.shouldShowItem(item) &&
               <ItemRow 
-                key={'item' + item.id}
+                key={'item' + item.ItemId}
+                user={user}
                 item={item}
-                baseUrl={this.props.baseUrl}
                 redrawCallback={this.props.redrawCallback}
                 isPair={index % 2===0}
                 isLocked={this.props.isLocked}
-                startFocused={this.itemIdThatWasJustAdded === item.id}
+                startFocused={this.itemIdThatWasJustAdded === item.ItemId}
                 resetStartFocused={this.resetStartFocused}
                 userPrefs={this.props.userPrefs}></ItemRow>
             )

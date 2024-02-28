@@ -1,5 +1,8 @@
 # Grocery list android app
 
+### BUILD
+eas build -p android --profile preview
+
 **React-native android app** made to be used **alone** or with the [API](https://github.com/kaiqueqg/grocerylist-api)
 
 ### Test:

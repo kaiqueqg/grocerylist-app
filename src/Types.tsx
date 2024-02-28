@@ -1,31 +1,35 @@
 export interface GroceryList{
-  categories: Category[]
-  items: Item[]
+  categories: Category[]|null
+  items: Item[]|null
   deletedCategories: Category[]|null
   deletedItems: Item[]|null
 }
 
 export interface Category{
-  id: string,
-  text: string,
-  isOpen: boolean
+  UserId: string,
+  CategoryId: string,
+  Text: string,
+  IsOpen: boolean
 }
 
 export interface Item{
-  id: string,
-  text: string,
-  isChecked: boolean,
-  myCategory: string,
-  quantity: number,
-  quantityUnit: string,
-  goodPrice: string,
+  UserIdCategoryId: string,
+  ItemId: string,
+  Text: string,
+  IsChecked: boolean,
+  Quantity: number,
+  QuantityUnit: string,
+  GoodPrice: string,
 }
 
 export interface User{
-  id?: number,
-  username: string,
-  password?: string,
-  userPrefs?: UserPrefs,
+  UserId: string,
+  Email: string
+  Username: string,
+  Password: string,
+  Role: string,
+  Status: string,
+  userPrefs: UserPrefs,
 }
 
 export interface UserPrefs{
@@ -34,9 +38,9 @@ export interface UserPrefs{
 }
 
 export interface LoginModel{
-  user?: User,
-  token: string,
-  errorMessage: string
+  User?: User,
+  Token: string,
+  ErrorMessage: string
 }
 
 export interface StorageInfo<T>{
@@ -45,4 +49,26 @@ export interface StorageInfo<T>{
   data?: T,
 }
 
+export interface Response<T> {
+  Data?: T,
+  Message?: string,
+  Exception?: string,
+  WasAnError: boolean,
+  Code?: number,
+}
+
+export const Codes = {
+  OK: 200,
+  Created: 201,
+  Accepted: 202,
+  NoContent: 204,
+  BadRequest: 400,
+  Unauthorized: 401,
+  Forbidden: 403,
+  NotFound: 404,
+  InternalServerError: 500,
+}
+
 export enum ItemsShown { Checked, Unchecked, Both }
+
+export enum LogLevel { Dev, Warn, Error, None  }
