@@ -7,9 +7,9 @@ import storage from '../../Storage/Storage';
 import log from '../../Log/Log';
 
 interface Props{
-  user: User,
   category: Category,
   items: Item[],
+  user: User,
   userPrefs: UserPrefs,
   redrawCallback: () => void,
   itemsShown: ItemsShown,
@@ -56,7 +56,6 @@ class CategoryRow extends React.Component<Props, States>{
   }
   
   confirmDeleteCategory = () => {
-    log.dev('confirmDeleteCategory', 'started');
     Alert.alert('', 'Do you really want to delete?', [
       { text: 'NO', onPress: () => { this.setState({ isEditing: false}) }},
       { text: 'YES', onPress: this.deleteCategory }
@@ -64,18 +63,16 @@ class CategoryRow extends React.Component<Props, States>{
   }
 
   deleteCategory = async () => {
-    log.dev('deleteCategory', 'started');
     await storage.deleteCategory(this.props.category.CategoryId);
     this.props.redrawCallback();
   }
 
   addNewItem = async () => {
-    const { category, user, isLocked } = this.props;
+    const { category, isLocked, user } = this.props;
 
     if(isLocked){ log.pop("List is locked"); return; }
 
     const itemId = storage.randomId();
-    log.dev('addNewItem', 'itemId: ' + itemId);
     const newItem: Item = {
       UserIdCategoryId: user.UserId  + category.CategoryId,
       ItemId: itemId,
@@ -137,9 +134,10 @@ class CategoryRow extends React.Component<Props, States>{
     this.props.redrawCallback();
   }
 
-  shoudShowItem = (item: Item) =>{
+  shouldShowItem = (item: Item) =>{
     const { itemsShown } = this.props;
-    return (itemsShown === ItemsShown.Both || ((item.IsChecked && itemsShown === ItemsShown.Checked) || (!item.IsChecked && itemsShown === ItemsShown.Unchecked)))
+    const value = (itemsShown === ItemsShown.Both || ((item.IsChecked && itemsShown === ItemsShown.Checked) || (!item.IsChecked && itemsShown === ItemsShown.Unchecked)));
+    return value;
   }
 
   cancelEdit = () => {
@@ -149,13 +147,17 @@ class CategoryRow extends React.Component<Props, States>{
 
   resetStartFocused = () => { this.itemIdThatWasJustAdded = ''; }
 
+  read = async () => { return await storage.readUser(); }
+
   render(): React.ReactNode {
     const { category, items, startFocused, user } = this.props;
     const { isEditing, textValue } = this.state;
 
     //TODO improve
-    const categoryItems: Item[] = items.filter((item) => {return item.UserIdCategoryId === user.UserId + category.CategoryId});
-    const displayItems: Item[] = categoryItems.filter((item) => {return (this.shoudShowItem(item))});
+    const categoryItems: Item[] = items.filter((item) => {
+      return item.UserIdCategoryId === user.UserId + category.CategoryId;
+    });
+    const displayItems: Item[] = categoryItems.filter((item) => {return (this.shouldShowItem(item))});
     const shouldDisplay: boolean = categoryItems.length == 0 || (categoryItems.length > 0 && displayItems.length > 0);
 
     return(
@@ -200,7 +202,7 @@ class CategoryRow extends React.Component<Props, States>{
         {category.IsOpen &&
             items.map((item: Item, index: number) => (
               item.UserIdCategoryId === (user.UserId + category.CategoryId) && 
-              this.shoudShowItem(item) &&
+              this.shouldShowItem(item) &&
               <ItemRow 
                 key={'item' + item.ItemId}
                 user={user}

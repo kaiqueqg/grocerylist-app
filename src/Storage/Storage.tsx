@@ -46,7 +46,6 @@ const storage = {
   async readUser(){
     try {
       const user = await AsyncStorage.getItem(keys.User);
-      log.dev('readUser', JSON.stringify(user));
       if(user !== null){
         try {
           const parsedUser: User = JSON.parse(user);
@@ -73,7 +72,6 @@ const storage = {
 
   async writeGroceryList(data: GroceryList){
     try {
-      log.dev('writeGroceryList', 'data: ', data);
       await AsyncStorage.setItem(keys.GroceryList, JSON.stringify(data));
     } catch (err) {
       log.err('writeGroceryList', '[catch] writing grocery list.');
@@ -92,7 +90,6 @@ const storage = {
           log.err('readGroceryList', 'Error parsing json');
         }
       }
-      log.dev('readGroceryList', 'returning null')
       return null;
     } catch (err) {
       log.err('readGroceryList', '[catch] reading grocery list.');
@@ -112,11 +109,13 @@ const storage = {
     const data: GroceryList|null = await this.readGroceryList();
     if(data !== null) {
       let items: Item[] = [];
-      data.items.map((item) => { 
-        if(item.UserIdCategoryId === userIdCategoryId) {
-          items = [...items, item];
-        }
-      });
+      if(data.items !== null){
+        data.items.map((item) => { 
+          if(item.UserIdCategoryId === userIdCategoryId) {
+            items = [...items, item];
+          }
+        });
+      }
       return items;
     }
   },
@@ -124,7 +123,8 @@ const storage = {
   async getItemWithSameText(item: Item){
     const data: GroceryList|null = await this.readGroceryList();
 
-    if(data !== null) return data.items.find((i: Item) => 
+    if(data !== null && data.items !== null) 
+      return data.items.find((i: Item) => 
     { 
       return i.ItemId !== item.ItemId && i.Text === item.Text && i.UserIdCategoryId === item.UserIdCategoryId
     });
@@ -134,33 +134,18 @@ const storage = {
   async insertItem(item: Item){
     const data: GroceryList|null = await this.readGroceryList();
 
-    if(data !== null){
-      let uniqueItem: Item[] = data.items.filter((i) => i.Text === item.Text && i.ItemId != item.ItemId && i.UserIdCategoryId === item.UserIdCategoryId);
-
-      if(uniqueItem.length === 0){
-        data.items.push(item);
-        this.writeGroceryList(data);
-      }
-      else{
-        log.pop('Item already exist!');
-        return uniqueItem[0];
-      }
+    if(data !== null && data.items !== null){
+      data.items.push(item);
+      this.writeGroceryList(data);
     }
   },
 
   async insertCategory(category: Category){
     const data: GroceryList|null = await  this.readGroceryList();
 
-    if(data !== null){
-      let uniqueCategory: Category[] = data.categories.filter((c) => c.Text === category.Text && c.CategoryId != category.CategoryId);
-
-      if(uniqueCategory.length === 0){
-        data.categories.unshift(category);
-        this.writeGroceryList(data);
-      }
-      else{
-        log.pop('Category already exist!');
-      }
+    if(data !== null && data.categories !== null){
+      data.categories.unshift(category);
+      this.writeGroceryList(data);
     }
   },
 
@@ -168,25 +153,20 @@ const storage = {
     const data: GroceryList|null = await this.readGroceryList();
     let info: StorageInfo<Category> = { ok: false };
 
-    if(data !== null){
+    if(data !== null && data.categories !== null){
       let uniqueCategory: Category[] = data.categories.filter((c) => c.Text === category.Text && c.CategoryId != category.CategoryId);
 
-      if(uniqueCategory.length === 0){
-        const newData = data.categories.map((c) => {
-          if(c.CategoryId === category.CategoryId){
-            return category;
-          }
-          else{
-            return c;
-          }
-        });
+      const newData = data.categories.map((c) => {
+        if(c.CategoryId === category.CategoryId){
+          return category;
+        }
+        else{
+          return c;
+        }
+      });
 
-        this.writeGroceryList({...data, categories: newData });
-        info = { ok: true };
-      }
-      else{
-        info = { ok: false, msg: 'Category already exist!'};
-      }
+      this.writeGroceryList({...data, categories: newData });
+      info = { ok: true };
     }
 
     return info;
@@ -195,23 +175,16 @@ const storage = {
   async updateItem(item: Item){
     const data: GroceryList|null = await this.readGroceryList();
 
-    if(data !== null){
-      let uniqueItem: Item[] = data.items.filter((i) => i.Text === item.Text && i.ItemId != item.ItemId && i.UserIdCategoryId === item.UserIdCategoryId);
-
-      if(uniqueItem.length === 0){
-        const newData = data.items.map((i) => {
-          if(i.ItemId == item.ItemId){
-            return item;
-          }
-          else{
-            return i;
-          }
-        });
-        this.writeGroceryList({...data, items: newData});
-      }
-      else{
-        log.pop('Item already exist!');
-      }
+    if(data !== null && data.items !== null){
+      const newData = data.items.map((i) => {
+        if(i.ItemId == item.ItemId){
+          return item;
+        }
+        else{
+          return i;
+        }
+      });
+      this.writeGroceryList({...data, items: newData});
     }
   },
 
@@ -291,7 +264,7 @@ const storage = {
     const data: GroceryList|null = await this.readGroceryList();
     const deletedCategories: Category[]|null = await this.readDeletedCategory();
 
-    if (data !== null) {
+    if (data !== null && data.categories !== null) {
       const categoriesToBeDeleted: Category|undefined = data.categories.find((i) => i.CategoryId === categoryId);
 
       if(categoriesToBeDeleted !== undefined){
@@ -310,23 +283,26 @@ const storage = {
     const data: GroceryList|null = await this.readGroceryList();
     const deletedItems: Item[]|null = await this.readDeletedItems();
 
-    if (data !== null) {
+    if (data !== null && data.items !== null) {
       const itemToBeDeleted: Item|undefined = data.items.find((i) => i.ItemId === itemId);
 
       if(itemToBeDeleted !== undefined){
         if(deletedItems !== null) {
           deletedItems.push(itemToBeDeleted);
           this.writeDeletedItems(deletedItems);
+          log.dev('deleteItem', 'item pushed', itemToBeDeleted);
         }
 
         const newData = data.items.filter((item) => item.ItemId !== itemToBeDeleted.ItemId);
         this.writeGroceryList({ ...data, items: newData });
       }
+      else{
+        log.dev('deleteItem', `can't find item: `, itemId);
+      }
     }
   },
   
   async writeJwtToken(token: string){
-    log.dev('writeJwtToken', 'token: ' + token);
     try {
       await AsyncStorage.setItem(keys.JwtToken, token);
     } catch (err) {

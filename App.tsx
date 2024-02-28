@@ -3,17 +3,20 @@ import { StyleSheet, View, StatusBar} from 'react-native';
 import Table from './src/Table/Table';
 import colors from './src/Colors';
 import storage from './src/Storage/Storage';
-import { User, UserPrefs } from './src/Types';
+import { GroceryList, User, UserPrefs } from './src/Types';
 import log from './src/Log/Log';
+import { UserProvider } from './src/Contexts/UserContext';
+import { grocerylistApi } from './src/Requests/RequestFactory';
 
 interface Props{
 }
 
 interface States{
+  groceryList: GroceryList,
   isLogged: boolean,
   isServerUp: boolean,
   userPrefs: UserPrefs,
-  user: User,
+  user: User | null,
   token: string | null,
 }
 
@@ -22,20 +25,10 @@ class App extends React.Component<Props, States>{
     super(props);
 
     this.state = {
+      groceryList: {categories: [], items: [], deletedCategories: [], deletedItems: []},
       isLogged: false,
       isServerUp: true,
-      user: { 
-        UserId: storage.randomId(),
-        Email: 'fake@fake.com',
-        Username: 'Fake',
-        Password: 'Fake',
-        Role: 'Admin',
-        Status: 'Active',
-        userPrefs: {
-          hideQuantity: true,
-          shouldCreateNewItemWhenCreateNewCategory: false
-        },
-      },
+      user: null,
       userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false},
       token: null,
     }
@@ -50,10 +43,35 @@ class App extends React.Component<Props, States>{
     this.loadUserPrefs();
   }
 
+  getFakeUser = () => {
+    const fakeUser: User = {
+      UserId: "0000000000000000000000000000000000000000",
+      Email: "t3v34v27245b47457b47@b47b34b7437b4b47b4.com",
+      Password: "b347b3b8n36m35m5n63n3n5n8535n835m68m53m3",
+      Username: "Guest",
+      Role: "Basic",
+      Status: 'Active',
+      userPrefs: {
+        hideQuantity: true,
+        shouldCreateNewItemWhenCreateNewCategory: false,
+      }
+    }
+
+    return fakeUser;
+  }
+
   loadLogin = async () => {
     try {
       const token = await storage.readJwtToken();
+      let user = await storage.readUser();
+
+      if(user === null){
+        user = this.getFakeUser();
+        await storage.writeUser(user);
+      }
+
       this.setState({
+        user: user,
         token: token,
         isLogged: token !== null
       });
@@ -81,18 +99,32 @@ class App extends React.Component<Props, States>{
    }
   }
 
-  isLoggedCallback = (value: boolean) => {
+  isLoggedCallback = async (value: boolean) => {
     this.setState({
-      isLogged: value
+      isLogged: value,
     });
   }
 
+  redrawCallback = async () => {
+    const newData: GroceryList|null = await storage.readGroceryList();
+    if(newData === null)
+    {
+      log.err('app.redrawCallback',  'grocery list null');
+      await storage.writeGroceryList({categories:  [], items: [], deletedCategories: [], deletedItems: []});
+      this.setState({groceryList: {categories:  [], items: [], deletedCategories: [], deletedItems: []}});
+    }
+    else{
+      const user = await storage.readUser();
+      this.setState({groceryList: newData, user});
+    }
+  }
+
   render(): React.ReactNode {
-    const { isLogged, userPrefs, user } = this.state;
+    const { isLogged, userPrefs, user, groceryList } = this.state;
 
     return(
       <View style={styles.container}>
-        <Table user={user} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback} userPrefs={userPrefs} userPrefsChanged={this.userPrefsChanged}></Table>
+        {user !== null && <Table user={user} redrawCallback={this.redrawCallback} groceryList={groceryList} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback} userPrefs={userPrefs} userPrefsChanged={this.userPrefsChanged}></Table>}
         <StatusBar backgroundColor={colors.bluedark} barStyle="light-content"/>
       </View>
     )

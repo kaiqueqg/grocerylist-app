@@ -3,14 +3,15 @@ import { StyleSheet, TextInput, View, Pressable, Text, Image} from "react-native
 import colors from "../Colors";
 import Loading from "../Loading/Loading";
 import log from "../Log/Log";
-import request from '../Requests/RequestFactory';
+import { identityApi } from "../Requests/RequestFactory";
 import storage from '../Storage/Storage';
-import { LoginModel, User } from "../Types";
+import { LoginModel, User, Response } from "../Types";
 import UserView from "./UserView";
 
 interface P{
   isLoggedCallback: (value: boolean) => void,
   userPrefsChanged: () => void,
+  redrawCallback: () => void,
 }
 
 interface S{
@@ -53,7 +54,7 @@ class Login extends React.Component<P, S>{
     return JSON.parse(jsonPayload);
   }
 
-  handleUsernameChange = (value: string) => {
+  handleEmailChange = (value: string) => {
     this.setState({
       email: value
     });
@@ -65,72 +66,75 @@ class Login extends React.Component<P, S>{
     });
   }
 
-  login = () => {
-    const { email: username, password: password } = this.state;
+  login = async () => {
+    const { email: email, password: password } = this.state;
     
-    // if(username.trim() === ""){
-    //   log.pop("Type username to login!");
-    //   return;
-    // }
+    const loginBody = { Email: email.trim(), Password: password.trim() };
 
-    // if(password.trim() === ""){
-    //   log.pop("Type password to login!");
-    //   return;
-    // }
+    if(loginBody.Email === ""){
+      log.pop("Type email to login!");
+      return;
+    }
 
-    // const user: User = {
-    //   username: username,
-    //   password: password
-    // };
+    if(loginBody.Password === ""){
+      log.pop("Type password to login!");
+      return;
+    }
 
-    const fetchData = async () => {
-      this.setState({ isLogging: true })
-      try {
-        const response = await request('/Login', 'POST', JSON.stringify({ Email: 'kaiqueqg@gmail.com', Password: 'Senha123!'}), async () => {
-          const isUpResponse = await request('/IsUp', 'GET', undefined, () => {});
-
-          if(isUpResponse !== undefined && isUpResponse.ok){
-            log.pop("Server is up but login doesn't respond!");
-          }
-          else{
-            log.pop("Server is down!");
-          }
-        });
-        if(response !== undefined) {
-          if(response.ok){
-            const jsonData: LoginModel = await response.json();
-
-            storage.writeJwtToken(jsonData.Token);
-            storage.writeUserPrefs(jsonData.User?.userPrefs? jsonData.User?.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
-            this.props.isLoggedCallback(true);
-
-            this.setState({ isLogged: true});
-          }
+    this.setState({ isLogging: true })
+    try {
+      log.dev('login.login', loginBody);
+      const response = await identityApi.login(JSON.stringify(loginBody), async () => {
+        const isUpResponse = await identityApi.isUp();
+        if(isUpResponse !== undefined && isUpResponse.ok){
+          log.pop("Server is up but login doesn't respond!");
         }
         else{
-          log.dev('[fetchData]', 'response is indefined? ' + (response === undefined? 'undefined': 'not'));
+          log.pop("Server is down!");
         }
-      } catch (error) {
-        log.err('[fetchData]', error);
+      });
+
+      if(response !== undefined && response !== null) {
+        const responseLoginModel: Response<LoginModel> = await response.json();
+        if(responseLoginModel.Data !== null && responseLoginModel.Data !== undefined && responseLoginModel.Data.User !== undefined && responseLoginModel.Data.Token !== undefined){
+          storage.writeUser(responseLoginModel.Data.User);
+          storage.writeJwtToken(responseLoginModel.Data.Token);
+          storage.writeUserPrefs(responseLoginModel.Data.User.userPrefs? responseLoginModel.Data.User.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
+          this.props.isLoggedCallback(true);
+          this.setState({ isLogged: true});
+        }
+        else{
+          log.dev('login', responseLoginModel);
+          log.pop(responseLoginModel.Message);
+        }
       }
-      setTimeout(() => {
-        this.setState({ isLogging: false });
-      }, 1000); 
-    };
-    fetchData();
+      else{
+        log.dev('login', response);
+        log.pop('Response of login was undefined or null.');
+      }
+    } 
+    catch (err) {
+      log.err('login', err);
+      log.pop(`Login response "catch" error.`);
+    }
+    setTimeout(() => {
+      this.setState({ isLogging: false });
+    }, 1000); 
   }
 
   logout = async () => {
-    log.pop('logout');
+    //log.pop('logout');
     await storage.deleteJwtToken();
+    await storage.deleteGroceryList();
     this.props.isLoggedCallback(false);
+    this.props.redrawCallback();
 
     this.setState({ isLogged: false });
   }
 
   render(): React.ReactNode {
     const { isLogged, isLogging } = this.state;
-
+    
     return(
       <View style={styles.loggingContainer}>
         {isLogged?
@@ -140,8 +144,8 @@ class Login extends React.Component<P, S>{
           <Text style={styles.grocerylistText}>
             GROCERY LIST
           </Text>
-          <TextInput placeholder="Username" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} onChangeText={this.handleUsernameChange}></TextInput>
-          <TextInput placeholder="Password" placeholderTextColor={colors.placeholderTextColor} style={styles.usernamepassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
+          <TextInput placeholder="Email" placeholderTextColor={colors.placeholderTextColor} style={styles.emailpassword} onChangeText={this.handleEmailChange}></TextInput>
+          <TextInput placeholder="Password" placeholderTextColor={colors.placeholderTextColor} style={styles.emailpassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
           {isLogging?
           <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
           :
@@ -174,23 +178,6 @@ const styles = StyleSheet.create({
     color: colors.beige,
     padding: 10,
   },
-  baseUrlTextInputContainer:{
-    flexDirection: 'row',
-    width: '90%',
-    margin: 10,
-    color: colors.beige,
-  },
-  baseUrlTextInput:{
-    width: '70%',
-    margin: 0,
-    padding: 10,
-    color: colors.beige,
-    backgroundColor: colors.blue,
-    borderStyle: 'solid',
-    borderWidth: 1,
-    borderColor: 'grey',
-    borderRadius: 2,
-  },
   baseUrlDoneCancelImage: {
     width: 10,
     height: 10,
@@ -213,7 +200,7 @@ const styles = StyleSheet.create({
     width: '15%',
     padding: 10,
   },
-  usernamepassword: {
+  emailpassword: {
     width: '90%',
     margin: 10,
     color: colors.beige,

@@ -1,6 +1,6 @@
 export interface GroceryList{
-  categories: Category[]
-  items: Item[]
+  categories: Category[]|null
+  items: Item[]|null
   deletedCategories: Category[]|null
   deletedItems: Item[]|null
 }
@@ -47,6 +47,26 @@ export interface StorageInfo<T>{
   ok: boolean,
   msg?: string,
   data?: T,
+}
+
+export interface Response<T> {
+  Data?: T,
+  Message?: string,
+  Exception?: string,
+  WasAnError: boolean,
+  Code?: number,
+}
+
+export const Codes = {
+  OK: 200,
+  Created: 201,
+  Accepted: 202,
+  NoContent: 204,
+  BadRequest: 400,
+  Unauthorized: 401,
+  Forbidden: 403,
+  NotFound: 404,
+  InternalServerError: 500,
 }
 
 export enum ItemsShown { Checked, Unchecked, Both }

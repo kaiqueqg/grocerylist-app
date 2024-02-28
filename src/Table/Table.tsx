@@ -1,25 +1,26 @@
-import React from 'react';
-import { GroceryList, Category, ItemsShown, Item, UserPrefs, User } from '../Types';
+import * as React from 'react';
+import { GroceryList, Category, ItemsShown, Item, UserPrefs, User, Response, Codes } from '../Types';
 import { StyleSheet, View, Text, Image, ScrollView, Pressable, ImageStyle, FlatList, Alert, } from 'react-native';
 import CategoryRow from './CategoryRow/CategoryRow';
-import request from '../Requests/RequestFactory';
 import colors from '../Colors';
 import storage from '../Storage/Storage';
 import Loading from '../Loading/Loading';
 import Login from '../Login/Login';
 import log from '../Log/Log';
 import PressImage from '../PressImage/PressImage';
+import { grocerylistApi } from '../Requests/RequestFactory';
 
 interface P{
+  groceryList: GroceryList,
   user: User,
   userPrefs: UserPrefs,
   isLogged: boolean,
   isLoggedCallback: (value: boolean) => void,
   userPrefsChanged: () => void,
+  redrawCallback: () => void,
 }
 
 interface S{
-  data: GroceryList,
   isServerUp: boolean,
   isTestingServerUp: boolean,
   itemsShown: ItemsShown,
@@ -41,7 +42,6 @@ class Table extends React.Component<P, S> {
     super(props);
 
     this.state = {
-      data: { categories: [], items: [], deletedCategories: [], deletedItems: [] },
       isServerUp: true,
       isTestingServerUp: false,
       itemsShown: ItemsShown.Both,
@@ -59,7 +59,6 @@ class Table extends React.Component<P, S> {
 
   componentDidMount(): void {
     //storage.deleteGroceryList();
-    this.readGroceryList();
   }
 
   resetStartFocused = () => { 
@@ -70,7 +69,7 @@ class Table extends React.Component<P, S> {
     this.setState({
       isTestingServerUp: true
     }, async () => {
-        const response = await request('/IsUp', 'GET', undefined, () => {
+        const response = await grocerylistApi.isUp(() => {
 
         log.pop('Server is down!');
         setTimeout(() => {
@@ -85,100 +84,103 @@ class Table extends React.Component<P, S> {
     });
   }
 
-  readGroceryList = async () => {
-    const data = await storage.readGroceryList();
-    log.dev('readGroceryList', 'data ', data);
-    if(data != null){
-      this.setState({
-        data
-      });
-    }
-    else{
-      await storage.writeGroceryList({categories: [], items: [], deletedCategories: [], deletedItems: []});
-      this.setState({data: {categories: [], items: [], deletedCategories: [], deletedItems: []}});
-    }
-  }
-
   user = async () => {
     this.setState({isLoggingIn: !this.state.isLoggingIn});
   }
 
   syncGroceryList = async () => {
-    this.setState({
-      isUploading: true
-    }, async () => {
-      const data: GroceryList|null = await storage.readGroceryList();
-      const deletedCategories: Category[]|null = await storage.readDeletedCategory();
-      const deletedItems: Item[]|null = await storage.readDeletedItems();
+    this.setState({ isUploading: true});
+    let groceryList = await storage.readGroceryList();
+    if(groceryList === null) return;
 
-      if(data !== null && deletedCategories !== null && deletedItems !== null) {
-        const uploadData: GroceryList = {...data, deletedCategories: deletedCategories, deletedItems: deletedItems};
+    const deletedCategories = await storage.readDeletedCategory();
+    const deletedItems = await storage.readDeletedItems();
+    groceryList.deletedCategories = deletedCategories;
+    groceryList.deletedItems = deletedItems;
 
-        const response = await request('/SyncGroceryList', 'PUT', JSON.stringify(uploadData), async () => {
-          this.setState({ isUploading: false });
-          const response = await request('/IsUp', 'GET', undefined, () => {
-            log.pop('Server is down!');
-            this.setState({ isServerUp: false });
-          });
-        });
-  
-        if(response !== undefined && response.ok){
-          log.dev('uploadGroceryList' ,'response: ' + JSON.stringify(response));
-          const data: GroceryList = await response.json();
-          storage.writeGroceryList(data);
-          storage.deleteDeletedCategories();
-          storage.deleteDeletedItems();
-  
-          setTimeout(() => {
-            this.setState({ isUploading: false, doneUpload: true }, () => {
-              this.redrawCallback();
-            });
-
-            setTimeout(() => {
-              this.setState({ doneUpload: false });
-            }, 2000);
-          }, 500);
-        }
-        else{
-          log.dev('uploadGroceryList', 'response: ' + JSON.stringify(response));
-        }
-      }
-    });
-  }
-
-  getGroceryList = async () => {
-    this.setState({
-      isDownloading: true
-    }, async () => {
-      const response = await request('/GetGroceryList', 'GET', undefined, async () => {
+    try {
+      const response = await grocerylistApi.syncGroceryList(groceryList, async () => {
         this.setState({ isDownloading: false });
-        const response = await request('/IsUp', 'GET', undefined, () => {
+        await grocerylistApi.isUp(() => {
           log.pop('Server is down!');
           this.setState({ isServerUp: false });
         });
       });
-      
-      if(response !== undefined && response.ok){
-        const data: GroceryList = await response.json();
-        log.dev('getGroceryList', 'downloaded data: ', data);
-        storage.writeGroceryList(data);
-
-        setTimeout(() => {
-          this.setState({ isDownloading: false, doneDownload: true }, () => {
-            this.redrawCallback();
-          });
-
-          setTimeout(() => {
-            this.setState({ doneDownload: false });
-          }, 2000);
-        }, 500);
+      if(response !== undefined && response !== null){
+        const responseGroceryList: Response<GroceryList> = await response.json();
+        
+        if(responseGroceryList.Data !== null && responseGroceryList.Data !== undefined){
+          storage.writeGroceryList(responseGroceryList.Data);
+          storage.deleteDeletedCategories();
+          storage.deleteDeletedItems();
+          this.props.redrawCallback();
+        } 
+        else{
+          log.dev('syncGroceryList', responseGroceryList.Message);
+          log.pop(responseGroceryList.Message);
+        }
       }
-    });
+      else{
+        log.dev('syncGroceryList', 'Response of SyncGroceryList was undefined or null.');
+        log.pop(`Response of SyncGroceryList was undefined or null.`);
+      }
+    } catch (err) {
+      log.err('syncGroceryList', err);
+      log.pop(`SyncGroceryList error.`);
+    }
+
+    this.setState({ isUploading: false });
+  }
+
+  getGroceryList = async () => {
+    this.setState({ isDownloading: true});
+
+    try {
+      log.dev('1');
+      const response = await grocerylistApi.getGroceryList(async () => {
+        this.setState({ isDownloading: false });
+        await grocerylistApi.isUp(() => {
+          log.pop('Server is down!');
+          this.setState({ isServerUp: false });
+        });
+      });
+      log.dev('2');
+      //! problem with response
+      if(response === undefined || response === null){ 
+        log.dev('getGroceryList', 'Response of GetGroceryList was undefined or null.');
+        log.pop(`Response of GetGroceryList was undefined or null.`);
+        return;
+      }
+
+      log.dev('1');
+
+      const responseGroceryList: Response<GroceryList> = await response.json();
+      //! response not ok
+      if(responseGroceryList.Code !== Codes.OK && responseGroceryList.Code !== Codes.NoContent){ log.pop(responseGroceryList.Message); return;}
+      //! problem with data
+      if(responseGroceryList.Data === null || responseGroceryList.Data === undefined){
+        log.dev('getGroceryList', responseGroceryList.Message);
+        log.pop(responseGroceryList.Message);
+        return;
+      }
+
+      //*happy path
+      log.dev('table.getGroceryList', responseGroceryList);
+      log.dev('table.getGroceryList', 'user', this.props.user);
+      storage.writeGroceryList(responseGroceryList.Data);
+      this.props.redrawCallback();
+    } 
+    catch (err) {
+      log.err('getGroceryList', err);
+      log.pop(`GetGroceryList response "catch" error.`);
+    }
+
+    this.setState({ isDownloading: false });
   }
 
   addNewCategory = async () => {
-    const { user } = this.props;
     const { isLocked } = this.state;
+    const { user } = this.props;
 
     if(isLocked){
       log.pop("List is locked");
@@ -207,16 +209,8 @@ class Table extends React.Component<P, S> {
       await storage.insertItem(newItem);
     }
 
-    this.readGroceryList();
+    this.props.redrawCallback();
     this.categoryIdThatWasJustAdded = newCategory.CategoryId;
-  }
-
-  redrawCallback = async () => {
-    const newData: GroceryList|null = await storage.readGroceryList();
-    if(newData !== null)
-    {
-      this.setState({data: newData});
-    }
   }
 
   changeItemsShown = () => {
@@ -241,19 +235,16 @@ class Table extends React.Component<P, S> {
   devDeleteAll = async () => {
     const newData = {categories: [], items: [], deletedCategories: [], deletedItems: []};
     await storage.writeGroceryList(newData);
-    this.setState({
-      data: newData
-    });
+    this.props.redrawCallback();
   }
 
   lockUnlock = () => {
     this.setState({ isLocked: !this.state.isLocked });
-    this.redrawCallback();
+    this.props.redrawCallback();
   }
 
   render() {
     const { 
-      data, 
       itemsShown,
       isDownloading,
       doneDownload,
@@ -263,16 +254,16 @@ class Table extends React.Component<P, S> {
       isTestingServerUp,
       isLocked,
     } = this.state;
+    const { groceryList } = this.props;
 
     let phrase = '';
     if(itemsShown === ItemsShown.Unchecked) phrase = 'No UNCHECKED items to be displayed...';
     else if(itemsShown === ItemsShown.Checked) phrase = 'No CHECKED items to be displayed...';
     else phrase = 'List is empty...';
-
     return(
       <View style={styles.tableContainer}>
         {isLoggingIn?
-          <Login isLoggedCallback={this.props.isLoggedCallback} userPrefsChanged={this.props.userPrefsChanged}></Login>
+          <Login isLoggedCallback={this.props.isLoggedCallback} redrawCallback={this.props.redrawCallback} userPrefsChanged={this.props.userPrefsChanged}></Login>
           :
           <View style={{flex: 1,}}>
             <View style={styles.tableHeaderContainer}>
@@ -281,18 +272,25 @@ class Table extends React.Component<P, S> {
               <PressImage style={styles.tableHeaderImage} source={require('../../public/images/add.png')} onPress={this.addNewCategory}></PressImage>
             </View>
             <View style={styles.tableBodyContainer}>
-              <FlatList data={data.categories} renderItem={({item: category}) => (
+              <FlatList data={this.props.groceryList.categories} renderItem={({item: category}) => (
                 <CategoryRow
+                  user={this.props.user}
                   key={'category' + category.CategoryId}
                   category={category} 
-                  items={ data.items.filter((item) => {return item.UserIdCategoryId.slice(-40) === category.CategoryId}) }
-                  redrawCallback={this.redrawCallback} 
+                  items={groceryList.items === null? 
+                    []
+                    :
+                    groceryList.items.filter((item) => 
+                    {
+                      return item.UserIdCategoryId.slice(-40) === category.CategoryId;
+                    })
+                   }
+                  redrawCallback={this.props.redrawCallback} 
                   itemsShown={itemsShown}
                   isLocked={isLocked}
                   startFocused={this.categoryIdThatWasJustAdded === category.CategoryId}
                   resetStartFocused={this.resetStartFocused}
-                  userPrefs={this.props.userPrefs}
-                  user={this.props.user}></CategoryRow>
+                  userPrefs={this.props.userPrefs}></CategoryRow>
               )}></FlatList>
             </View>
           </View>

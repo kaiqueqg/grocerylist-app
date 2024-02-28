@@ -155,7 +155,6 @@ class ItemRow extends React.Component<P,S>{
     if(item.GoodPrice !== null && item.GoodPrice !== undefined && item.GoodPrice !== '' && item.GoodPrice !== '$') text = text + ' (' + item.GoodPrice + ')';
 
     let minusTintColor = item.Quantity > 1? (item.IsChecked? colors.beigedark : colors.beige) : colors.grey;
-
     return(
       isEditing ?
         //* EDITING
