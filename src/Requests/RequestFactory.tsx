@@ -101,7 +101,6 @@ export const grocerylistApi = {
     return this.requestGroceryList('/GetGroceryList', 'GET', undefined, fError);
   },
   async syncGroceryList(groceryList: GroceryList, fError?: () => void): Promise<any>{
-    log.dev('groceryList', groceryList);
     return this.requestGroceryList('/SyncGroceryList', 'PUT', JSON.stringify(groceryList), fError);
   },
   async requestGroceryList(endpoint: string, method: string, body?: string, fError?: () => void): Promise<any>{

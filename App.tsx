@@ -5,8 +5,6 @@ import colors from './src/Colors';
 import storage from './src/Storage/Storage';
 import { GroceryList, User, UserPrefs } from './src/Types';
 import log from './src/Log/Log';
-import { UserProvider } from './src/Contexts/UserContext';
-import { grocerylistApi } from './src/Requests/RequestFactory';
 
 interface Props{
 }
@@ -37,27 +35,19 @@ class App extends React.Component<Props, States>{
   componentDidMount(): void {
     this.loadLogin();
     this.loadUserPrefs();
+    this.loadGroceryList();
   }
 
-  userPrefsChanged = () => {
-    this.loadUserPrefs();
-  }
+  loadGroceryList = async () => {
+    try {
+      const groceryList = await storage.readGroceryList();
 
-  getFakeUser = () => {
-    const fakeUser: User = {
-      UserId: "0000000000000000000000000000000000000000",
-      Email: "t3v34v27245b47457b47@b47b34b7437b4b47b4.com",
-      Password: "b347b3b8n36m35m5n63n3n5n8535n835m68m53m3",
-      Username: "Guest",
-      Role: "Basic",
-      Status: 'Active',
-      userPrefs: {
-        hideQuantity: true,
-        shouldCreateNewItemWhenCreateNewCategory: false,
+      if(groceryList !== null){
+        this.setState({groceryList});
       }
+    } catch (err) {
+      log.err('loadGroceryList', err);
     }
-
-    return fakeUser;
   }
 
   loadLogin = async () => {
@@ -97,6 +87,27 @@ class App extends React.Component<Props, States>{
    } catch (err) {
      log.err('loadUserPrefs', 'Error loading user preferences: ', err);
    }
+  }
+
+  userPrefsChanged = () => {
+    this.loadUserPrefs();
+  }
+
+  getFakeUser = () => {
+    const fakeUser: User = {
+      UserId: "0000000000000000000000000000000000000000",
+      Email: "t3v34v27245b47457b47@b47b34b7437b4b47b4.com",
+      Password: "b347b3b8n36m35m5n63n3n5n8535n835m68m53m3",
+      Username: "Guest",
+      Role: "Basic",
+      Status: 'Active',
+      userPrefs: {
+        hideQuantity: true,
+        shouldCreateNewItemWhenCreateNewCategory: false,
+      }
+    }
+    
+    return fakeUser;
   }
 
   isLoggedCallback = async (value: boolean) => {

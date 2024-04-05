@@ -136,7 +136,6 @@ class Table extends React.Component<P, S> {
     this.setState({ isDownloading: true});
 
     try {
-      log.dev('1');
       const response = await grocerylistApi.getGroceryList(async () => {
         this.setState({ isDownloading: false });
         await grocerylistApi.isUp(() => {
@@ -144,15 +143,12 @@ class Table extends React.Component<P, S> {
           this.setState({ isServerUp: false });
         });
       });
-      log.dev('2');
       //! problem with response
       if(response === undefined || response === null){ 
         log.dev('getGroceryList', 'Response of GetGroceryList was undefined or null.');
         log.pop(`Response of GetGroceryList was undefined or null.`);
         return;
       }
-
-      log.dev('1');
 
       const responseGroceryList: Response<GroceryList> = await response.json();
       //! response not ok
@@ -165,8 +161,6 @@ class Table extends React.Component<P, S> {
       }
 
       //*happy path
-      log.dev('table.getGroceryList', responseGroceryList);
-      log.dev('table.getGroceryList', 'user', this.props.user);
       storage.writeGroceryList(responseGroceryList.Data);
       this.props.redrawCallback();
     } 

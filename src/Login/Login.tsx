@@ -83,7 +83,6 @@ class Login extends React.Component<P, S>{
 
     this.setState({ isLogging: true })
     try {
-      log.dev('login.login', loginBody);
       const response = await identityApi.login(JSON.stringify(loginBody), async () => {
         const isUpResponse = await identityApi.isUp();
         if(isUpResponse !== undefined && isUpResponse.ok){
@@ -123,7 +122,6 @@ class Login extends React.Component<P, S>{
   }
 
   logout = async () => {
-    //log.pop('logout');
     await storage.deleteJwtToken();
     await storage.deleteGroceryList();
     this.props.isLoggedCallback(false);
