@@ -1,7 +1,7 @@
 import React from "react";
 import { KeyboardTypeOptions } from "react-native";
 import { Pressable, Image, StyleSheet, TextInput, Text, View } from "react-native";
-import colors from "../../Colors";
+import { ThemePalette } from "../../Colors";
 import log from "../../Log/Log";
 import PressImage from "../../PressImage/PressImage";
 import { Item, UserPrefs } from '../../Types';
@@ -13,6 +13,7 @@ interface P{
   handleTextEnter: () => void,
   keyboardType?: KeyboardTypeOptions,
   autoFocus?: boolean,
+  theme: ThemePalette
 }
 
 interface S{
@@ -34,11 +35,12 @@ class ItemDetailRow extends React.Component<P,S>{
   }
 
   render(): React.ReactNode {
+    const { theme } = this.props;
     return(
-      <View style={styles.itemDetailRowContainer}>
-        <Text style={styles.itemText}>{this.props.infoText}</Text>
+      <View style={styles(theme).itemDetailRowContainer}>
+        <Text style={styles(theme).itemText}>{this.props.infoText}</Text>
         <TextInput 
-          style={styles.itemTextInput}
+          style={styles(theme).itemTextInput}
           value={this.state.text}
           keyboardType={this.props.keyboardType === undefined? 'default' : this.props.keyboardType}
           onChangeText={this.handleTextChange}
@@ -51,26 +53,24 @@ class ItemDetailRow extends React.Component<P,S>{
   }
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ThemePalette) => StyleSheet.create({
   itemDetailRowContainer:{
     flex: 1,
     flexDirection: 'column',
   },
   itemText: {
-    flex: 1,
-    verticalAlign: 'middle',
-    color: colors.beige,
-    height: 20,
+    fontSize: 10,
+    color: theme.textcolor,
     margin: 5,
   },
   itemTextInput: {
     flex: 1,
     height: 40,
     paddingLeft: 5,
-    borderColor: colors.beigedark,
+    borderColor: theme.boxborder,
     borderWidth: 1,
     borderRadius: 2,
-    color: colors.beige
+    color: theme.textcolor,
   }
 });
 

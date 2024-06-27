@@ -1,7 +1,7 @@
 import React from 'react';
 import { Item, User, UserPrefs } from '../../Types';
 import { Text, StyleSheet, Image, View, Pressable, TextInput, Keyboard } from 'react-native';
-import colors from '../../Colors';
+import { ThemePalette } from '../../Colors';
 import storage from '../../Storage/Storage';
 import log from '../../Log/Log';
 import PressImage from '../../PressImage/PressImage';
@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import PressText from '../../PressText/PressText';
 
 interface P{
+  theme: ThemePalette,
   user: User,
   item: Item,
   userPrefs: UserPrefs,
@@ -142,44 +143,55 @@ class ItemRow extends React.Component<P,S>{
     }
   }
 
-  render(): React.ReactNode {
-    const { isPair, item, userPrefs } = this.props;
-    const { isEditing } = this.state;
-    let text = item.Text;
-    let quantity = '1';
-
-    if(!userPrefs.hideQuantity && item.Quantity !== null && item.Quantity !== undefined) {
-      text = item.Quantity +"x " + text;
-      quantity = item.Quantity.toString();
+  getDisplayText = () => {
+    const { item, userPrefs } = this.props;
+    let displayText = '';
+    if(!userPrefs.hideQuantity && item.Quantity) {
+      displayText = item.Quantity +"x ";
     }
-    if(item.GoodPrice !== null && item.GoodPrice !== undefined && item.GoodPrice !== '' && item.GoodPrice !== '$') text = text + ' (' + item.GoodPrice + ')';
 
-    let minusTintColor = item.Quantity > 1? (item.IsChecked? colors.beigedark : colors.beige) : colors.grey;
+    displayText += item.Text
+
+    if(!userPrefs.showOnlyItemText && item.GoodPrice && item.QuantityUnit && item.GoodPrice != '$'){
+      displayText += ' (' + item.GoodPrice + ' - ' + item.QuantityUnit + ')';
+    }
+
+    return displayText;
+  }
+
+  render(): React.ReactNode {
+    const { isPair, item, userPrefs, theme } = this.props;
+    const { isEditing } = this.state;
+
+    let minusTintColor = item.Quantity > 1? (item.IsChecked? theme.icontintfade : theme.icontint) : theme.icontintfade;
     return(
       isEditing ?
         //* EDITING
-        <View style={isPair? [styles.itemRowDetailContainer, {backgroundColor: colors.bluedark}] : [styles.itemRowDetailContainer, {backgroundColor: colors.blue}]}>
-          <PressImage style={styles.checkedUncheckedImage} onPress={this.deleteItem} source={require('../../../public/images/trash.png')}></PressImage>
-          <View style={styles.detailsContainer}>
-            <ItemDetailRow infoText='Text:' text={item.Text} changeValue={this.textInputChange} handleTextEnter={this.textInputEnter} autoFocus={true}></ItemDetailRow>
-            <ItemDetailRow keyboardType='numeric' infoText='Quantity:' text={item.Quantity.toString()} changeValue={this.quantityChange} handleTextEnter={this.textInputEnter}></ItemDetailRow>
-            <ItemDetailRow infoText='Good Price:' text={item.GoodPrice} changeValue={this.goodPriceChange} handleTextEnter={this.textInputEnter}></ItemDetailRow>
-            <ItemDetailRow infoText='Quantity Unit:' text={item.QuantityUnit} changeValue={this.quantityUnitChange} handleTextEnter={this.textInputEnter}></ItemDetailRow>
+        <View style={isPair? [styles(theme).itemRowDetailContainer, {backgroundColor: theme.backgroundcolor}] : [styles(theme).itemRowDetailContainer, {backgroundColor: theme.backgroundcolordark}]}>
+          <PressImage style={styles(theme).trashImage} onPress={this.deleteItem} source={require('../../../public/images/trash.png')}></PressImage>
+          <View style={styles(theme).detailsContainer}>
+            <ItemDetailRow theme={theme} infoText='Text:' text={item.Text} changeValue={this.textInputChange} handleTextEnter={this.textInputEnter} autoFocus={true}></ItemDetailRow>
+            {!userPrefs.showOnlyItemText && 
+            <>
+              <ItemDetailRow theme={theme} keyboardType='numeric' infoText='Quantity:' text={item.Quantity.toString()} changeValue={this.quantityChange} handleTextEnter={this.textInputEnter}></ItemDetailRow>
+              <ItemDetailRow theme={theme} infoText='Good Price:' text={item.GoodPrice} changeValue={this.goodPriceChange} handleTextEnter={this.textInputEnter}></ItemDetailRow>
+              <ItemDetailRow theme={theme} infoText='Quantity Unit:' text={item.QuantityUnit} changeValue={this.quantityUnitChange} handleTextEnter={this.textInputEnter}></ItemDetailRow>
+            </>}
           </View>
-          <PressImage style={[styles.checkedUncheckedImage, {tintColor: colors.green}]} onPress={this.textInputEnter} source={require('../../../public/images/done.png')}></PressImage>
-          <PressImage style={[styles.checkedUncheckedImage, {tintColor: colors.red}]} onPress={this.cancelEdit} source={require('../../../public/images/cancel.png')}></PressImage>
+          <PressImage style={[styles(theme).checkedUncheckedImage, {tintColor: theme.onlineicontint}]} onPress={this.textInputEnter} source={require('../../../public/images/done.png')}></PressImage>
+          <PressImage style={[styles(theme).checkedUncheckedImage, {tintColor: theme.offlineicontint}]} onPress={this.cancelEdit} source={require('../../../public/images/cancel.png')}></PressImage>
         </View>
         :
         //* VIEWING
-        <View style={isPair? [styles.itemRowContainer, {backgroundColor: colors.bluedark}] : [styles.itemRowContainer, {backgroundColor: colors.blue}]}>
+        <View style={isPair? [styles(theme).itemRowContainer, {backgroundColor: theme.lineonebk}] : [styles(theme).itemRowContainer, {backgroundColor: theme.linetwobk}]}>
           <React.Fragment>
-            {!userPrefs.hideQuantity && <PressImage style={[styles.minusPlusImage, {tintColor: minusTintColor}]} onPress={this.decreaseQuantity} source={require('../../../public/images/minus.png')}></PressImage>}
-            {!userPrefs.hideQuantity && <PressImage style={[styles.minusPlusImage, {tintColor: item.IsChecked? colors.beigedark : colors.beige}]} onPress={this.increaseQuantity} source={require('../../../public/images/add.png')}></PressImage>}
-            <PressText text={text} textStyle={[styles.itemText, {color: item.IsChecked? colors.beigedark : colors.beige}]} style={styles.pressableItemText} onPress={this.textPress}></PressText>
+            {!userPrefs.hideQuantity && <PressImage style={[styles(theme).minusPlusImage, {tintColor: minusTintColor}]} onPress={this.decreaseQuantity} source={require('../../../public/images/minus.png')}></PressImage>}
+            {!userPrefs.hideQuantity && <PressImage style={[styles(theme).minusPlusImage, {tintColor: item.IsChecked? theme.icontintfade : theme.icontint}]} onPress={this.increaseQuantity} source={require('../../../public/images/add.png')}></PressImage>}
+            <PressText text={this.getDisplayText()} textStyle={[styles(theme).itemText, item.IsChecked? styles(theme).itemTextFade : undefined]} style={styles(theme).pressableItemText} onPress={this.textPress}></PressText>
             {item.IsChecked?
-              <PressImage style={[styles.checkedUncheckedImage, {tintColor: item.IsChecked? colors.beigedark : colors.beige}]} onPress={this.changeIsChecked} source={require('../../../public/images/checked.png')}></PressImage>
+              <PressImage style={[styles(theme).checkedUncheckedImage, {tintColor: item.IsChecked? theme.icontintfade : theme.icontint}]} onPress={this.changeIsChecked} source={require('../../../public/images/checked.png')}></PressImage>
               :
-              <PressImage style={[styles.checkedUncheckedImage, {tintColor: item.IsChecked? colors.beigedark : colors.beige}]} onPress={this.changeIsChecked} source={require('../../../public/images/unchecked.png')}></PressImage>
+              <PressImage style={[styles(theme).checkedUncheckedImage, {tintColor: item.IsChecked? theme.icontintfade : theme.icontint}]} onPress={this.changeIsChecked} source={require('../../../public/images/unchecked.png')}></PressImage>
             }
           </React.Fragment>
         </View>
@@ -187,26 +199,34 @@ class ItemRow extends React.Component<P,S>{
   }
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ThemePalette) => StyleSheet.create({
   itemRowContainer: {
     width: '100%',
     height: 45,
     flexDirection: 'row',
     borderStyle: 'solid',
-    borderColor: 'white',
+    borderColor: theme.boxborder,
     alignItems: 'center',
   },
   itemRowDetailContainer: {
     width: '100%',
     flexDirection: 'row',
     borderStyle: 'solid',
-    borderColor: 'white',
+    borderColor: theme.boxborder,
     alignItems: 'center',
   },
   checkedUncheckedImage: {
-    margin: 10,
+    marginVertical: 10,
+    marginHorizontal: 7,
     width: 25,
     height: 25,
+  },
+  trashImage:{
+    marginVertical: 10,
+    marginHorizontal: 15,
+    width: 25,
+    height: 25,
+    tintColor: theme.icontint
   },
   minusPlusImage: {
     marginTop: 5,
@@ -230,21 +250,27 @@ const styles = StyleSheet.create({
   itemText: {
     flex: 1,
     verticalAlign: 'middle',
-    color: colors.beige,
+    fontWeight: 'bold',
+    color: theme.textcolor,
     paddingLeft: 10,
+  },
+  itemTextFade: {
+    fontWeight: 'normal',
+    color: theme.textcolorfade,
   },
   itemTextInput: {
     flex: 1,
     paddingLeft: 5,
-    borderColor: colors.beige,
+    borderColor: theme.boxborder,
     borderWidth: 1,
     borderRadius: 2,
-    color: colors.beige
+    color: theme.textcolor
   },
   detailsContainer: {
     flex: 1,
     flexDirection: 'column',
     verticalAlign: 'middle',
+    marginBottom: 5,
   }
 });
 

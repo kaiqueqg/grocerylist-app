@@ -2,11 +2,12 @@ import React from 'react';
 import { Item, Category, ItemsShown, StorageInfo, UserPrefs, User } from '../../Types';
 import ItemRow from '../ItemRow/ItemRow';
 import { Text, StyleSheet, Image, View, Pressable, Alert, TextInput, Keyboard } from 'react-native';
-import colors from '../../Colors';
+import { ThemePalette } from '../../Colors';
 import storage from '../../Storage/Storage';
 import log from '../../Log/Log';
 
 interface Props{
+  theme: ThemePalette,
   category: Category,
   items: Item[],
   user: User,
@@ -150,7 +151,7 @@ class CategoryRow extends React.Component<Props, States>{
   read = async () => { return await storage.readUser(); }
 
   render(): React.ReactNode {
-    const { category, items, startFocused, user } = this.props;
+    const { category, items, startFocused, user, theme } = this.props;
     const { isEditing, textValue } = this.state;
 
     //TODO improve
@@ -163,47 +164,47 @@ class CategoryRow extends React.Component<Props, States>{
     return(
       (shouldDisplay ? 
       <View>
-        <View style={styles.categoryRowContainer}>
+        <View style={styles(theme).categoryRowContainer}>
           {isEditing?
             <Pressable onPress={this.confirmDeleteCategory}>
-              <Image style={styles.trashImage} source={require('../../../public/images/trash.png')}/>
+              <Image style={styles(theme).trashImage} source={require('../../../public/images/trash.png')}/>
             </Pressable>
             :
             (category.IsOpen ? 
               <Pressable onPress={this.changeItemsDisplay}>
-                <Image style={styles.chevronAddImage} source={require('../../../public/images/down-chevron.png')}/>
+                <Image style={styles(theme).chevronAddImage} source={require('../../../public/images/down-chevron.png')}/>
               </Pressable>
               :
               <Pressable onPress={this.changeItemsDisplay}>
-                <Image style={styles.chevronAddImage} source={require('../../../public/images/up-chevron.png')}/>
+                <Image style={styles(theme).chevronAddImage} source={require('../../../public/images/up-chevron.png')}/>
               </Pressable>)
           }
           {isEditing?
-            <TextInput style={styles.categoryTextInput} value={textValue} autoFocus={true} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
+            <TextInput style={styles(theme).categoryTextInput} value={textValue} autoFocus={true} onChangeText={this.textInputChange} onSubmitEditing={this.textInputEnter} autoCapitalize="characters"></TextInput>
             :
-            <Pressable style={styles.pressableRowText} onPress={this.textPress}>
-              <Text style={styles.rowText}>{category.Text}</Text>
+            <Pressable style={styles(theme).pressableRowText} onPress={this.textPress}>
+              <Text style={styles(theme).rowText}>{category.Text}</Text>
             </Pressable>
           }
           {isEditing?
             <React.Fragment>
               <Pressable onPress={this.textInputEnter}>
-                <Image style={[styles.doneCancelImage, {tintColor: colors.green}]} source={require('../../../public/images/done.png')}/>
+                <Image style={[styles(theme).doneCancelImage, {tintColor: theme.onlineicontint}]} source={require('../../../public/images/done.png')}/>
               </Pressable>
               <Pressable onPress={this.cancelEdit}>
-                <Image style={[styles.doneCancelImage, {tintColor: colors.red}]} source={require('../../../public/images/cancel.png')}/>
+                <Image style={[styles(theme).doneCancelImage, {tintColor: theme.offlineicontint}]} source={require('../../../public/images/cancel.png')}/>
               </Pressable>
             </React.Fragment>
             :
             <Pressable onPress={this.addNewItem}>
-              <Image style={styles.chevronAddImage} source={require('../../../public/images/add.png')}/>
+              <Image style={styles(theme).chevronAddImage} source={require('../../../public/images/add.png')}/>
             </Pressable>}
         </View>
         {category.IsOpen &&
-            items.map((item: Item, index: number) => (
+            displayItems.map((item: Item, index: number) => (
               item.UserIdCategoryId === (user.UserId + category.CategoryId) && 
-              this.shouldShowItem(item) &&
               <ItemRow 
+                theme={theme}
                 key={'item' + item.ItemId}
                 user={user}
                 item={item}
@@ -223,9 +224,9 @@ class CategoryRow extends React.Component<Props, States>{
   }
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ThemePalette) => StyleSheet.create({
   categoryRowContainer:{
-    backgroundColor: colors.bluedarker,
+    backgroundColor: theme.backgroundcolordarker,
     flex: 1,
     flexDirection: 'row',
     width: '100%',
@@ -235,7 +236,7 @@ const styles = StyleSheet.create({
     margin: 7,
     width: 20,
     height: 20,
-    tintColor: colors.beige,
+    tintColor: theme.icontint,
   },
   doneCancelImage:{
     margin: 10,
@@ -252,17 +253,17 @@ const styles = StyleSheet.create({
   },
   rowText: {
     textAlign: 'center',
-    color: colors.beige,
+    color: theme.textcolor,
     fontWeight: 'bold',
   },
   categoryTextInput: {
     flex: 1,
     textAlign: 'center',
     paddingLeft: 5,
-    borderColor: colors.beige,
+    borderColor: theme.boxborder,
     borderWidth: 1,
     borderRadius: 2,
-    color: colors.beige
+    color: theme.icontint
   }
 });
 

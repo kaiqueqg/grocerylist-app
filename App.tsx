@@ -1,10 +1,10 @@
 import React from 'react';
 import { StyleSheet, View, StatusBar} from 'react-native';
 import Table from './src/Table/Table';
-import colors from './src/Colors';
 import storage from './src/Storage/Storage';
 import { GroceryList, User, UserPrefs } from './src/Types';
 import log from './src/Log/Log';
+import { ThemePalette, dark, paper, white } from './src/Colors';
 
 interface Props{
 }
@@ -16,19 +16,21 @@ interface States{
   userPrefs: UserPrefs,
   user: User | null,
   token: string | null,
+  theme: ThemePalette,
 }
 
 class App extends React.Component<Props, States>{
   constructor(props: Props){
     super(props);
-
+    
     this.state = {
       groceryList: {categories: [], items: [], deletedCategories: [], deletedItems: []},
       isLogged: false,
       isServerUp: true,
       user: null,
-      userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false},
+      userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false, showOnlyItemText: false, theme: 'white'},
       token: null,
+      theme: white,
     }
   }
 
@@ -36,6 +38,20 @@ class App extends React.Component<Props, States>{
     this.loadLogin();
     this.loadUserPrefs();
     this.loadGroceryList();
+    this.loadTheme();
+  }
+  
+  loadTheme = async () => {
+    const prefs = await storage.readUserPrefs();
+
+    if (prefs) {
+      if(prefs.theme === 'paper')
+        this.setState({theme: paper});
+      else if(prefs.theme === 'white')
+        this.setState({theme: white});
+      else 
+        this.setState({theme: dark});
+    }
   }
 
   loadGroceryList = async () => {
@@ -73,24 +89,29 @@ class App extends React.Component<Props, States>{
   loadUserPrefs = async () => {
     try {
       const userPrefs = await storage.readUserPrefs();
-      if(userPrefs === null){
-       storage.writeUserPrefs({ hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
-       this.setState({
-         userPrefs: { hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false}
-       });
+      if(!userPrefs){
+        const newPrefs = { 
+          hideQuantity: false, 
+          shouldCreateNewItemWhenCreateNewCategory: false,
+          showOnlyItemText: false,
+          theme: 'dark'
+        };
+        storage.writeUserPrefs(newPrefs);
+        this.setState({ userPrefs: newPrefs });
       }
       else{
-       this.setState({
-         userPrefs
-       });
+        this.setState({
+          userPrefs
+        });
       }
    } catch (err) {
-     log.err('loadUserPrefs', 'Error loading user preferences: ', err);
+      log.err('loadUserPrefs', 'Error loading user preferences: ', err);
    }
   }
 
   userPrefsChanged = () => {
     this.loadUserPrefs();
+    this.redrawCallback();
   }
 
   getFakeUser = () => {
@@ -104,6 +125,8 @@ class App extends React.Component<Props, States>{
       userPrefs: {
         hideQuantity: true,
         shouldCreateNewItemWhenCreateNewCategory: false,
+        showOnlyItemText: false,
+        theme: 'dark',
       }
     }
     
@@ -117,6 +140,8 @@ class App extends React.Component<Props, States>{
   }
 
   redrawCallback = async () => {
+    this.loadTheme();
+
     const newData: GroceryList|null = await storage.readGroceryList();
     if(newData === null)
     {
@@ -130,22 +155,33 @@ class App extends React.Component<Props, States>{
     }
   }
 
+  getContent = (): 'default' | 'light-content' | 'dark-content' => {
+    const { userPrefs }= this.state;
+    if(userPrefs.theme === 'dark') return 'light-content';
+    if(userPrefs.theme === 'white') return 'dark-content';
+    if(userPrefs.theme === 'paper') return 'dark-content';
+
+    return 'dark-content';
+  }
+
   render(): React.ReactNode {
-    const { isLogged, userPrefs, user, groceryList } = this.state;
+    const { isLogged, userPrefs, user, groceryList, theme } = this.state;
 
     return(
-      <View style={styles.container}>
-        {user !== null && <Table user={user} redrawCallback={this.redrawCallback} groceryList={groceryList} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback} userPrefs={userPrefs} userPrefsChanged={this.userPrefsChanged}></Table>}
-        <StatusBar backgroundColor={colors.bluedark} barStyle="light-content"/>
+      <View style={styles(theme).container}>
+        {user !== null && 
+          <Table theme={theme} user={user} redrawCallback={this.redrawCallback} groceryList={groceryList} isLogged={isLogged} isLoggedCallback={this.isLoggedCallback} userPrefs={userPrefs} userPrefsChanged={this.userPrefsChanged}></Table>
+        }
+        <StatusBar backgroundColor={theme.backgroundcolor} barStyle={this.getContent()}/>
       </View>
     )
   }
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ThemePalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bluedark,
+    backgroundColor: theme.backgroundcolor,
     justifyContent: 'center',
   },
 });

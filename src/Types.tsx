@@ -35,6 +35,8 @@ export interface User{
 export interface UserPrefs{
   shouldCreateNewItemWhenCreateNewCategory: boolean,
   hideQuantity: boolean,
+  showOnlyItemText: boolean,
+  theme: string,
 }
 
 export interface LoginModel{

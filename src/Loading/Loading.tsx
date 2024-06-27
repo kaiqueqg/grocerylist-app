@@ -1,7 +1,9 @@
 import React from 'react';
 import { StyleSheet, ImageStyle, Animated, Easing, View } from 'react-native';
+import { ThemePalette } from '../Colors';
 
 interface Props{
+  theme: ThemePalette,
   style: ImageStyle,
 }
 interface States{
@@ -38,7 +40,7 @@ class Loading extends React.Component<Props, States>{
   };
 
   render(): React.ReactNode {
-
+    const { theme } = this.props;
     const rotate = this.rotateValue.interpolate({
       inputRange: [0, 1],
       outputRange: ['0deg', '360deg'],
@@ -47,7 +49,9 @@ class Loading extends React.Component<Props, States>{
     return(
       <View style={this.props.style}>
         <Animated.Image 
-            style={[styles.image, { transform: [{rotate}] }]}
+            style={[styles(theme).image,
+            { transform: [{rotate}] }
+            ]}
             source={require('../../public/images/refresh.png')}
           />
       </View>
@@ -55,11 +59,12 @@ class Loading extends React.Component<Props, States>{
   }
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ThemePalette) => StyleSheet.create({
   image: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    width: 30,
+    height: 30,
+    tintColor: theme.inprogressicontint,
   },
 })
 

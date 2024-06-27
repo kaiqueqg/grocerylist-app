@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, TextInput, View, Pressable, Text, Image} from "react-native";
-import colors from "../Colors";
+import { ThemePalette } from "../Colors";
 import Loading from "../Loading/Loading";
 import log from "../Log/Log";
 import { identityApi } from "../Requests/RequestFactory";
@@ -9,6 +9,7 @@ import { LoginModel, User, Response } from "../Types";
 import UserView from "./UserView";
 
 interface P{
+  theme: ThemePalette,
   isLoggedCallback: (value: boolean) => void,
   userPrefsChanged: () => void,
   redrawCallback: () => void,
@@ -67,9 +68,7 @@ class Login extends React.Component<P, S>{
   }
 
   login = async () => {
-    const { email: email, password: password } = this.state;
-    
-    const loginBody = { Email: email.trim(), Password: password.trim() };
+    const loginBody = { Email: this.state.email.trim(), Password: this.state.password.trim() };
 
     if(loginBody.Email === ""){
       log.pop("Type email to login!");
@@ -83,38 +82,18 @@ class Login extends React.Component<P, S>{
 
     this.setState({ isLogging: true })
     try {
-      const response = await identityApi.login(JSON.stringify(loginBody), async () => {
-        const isUpResponse = await identityApi.isUp();
-        if(isUpResponse !== undefined && isUpResponse.ok){
-          log.pop("Server is up but login doesn't respond!");
-        }
-        else{
-          log.pop("Server is down!");
-        }
-      });
+      const data = await identityApi.login(JSON.stringify(loginBody), () => {});
 
-      if(response !== undefined && response !== null) {
-        const responseLoginModel: Response<LoginModel> = await response.json();
-        if(responseLoginModel.Data !== null && responseLoginModel.Data !== undefined && responseLoginModel.Data.User !== undefined && responseLoginModel.Data.Token !== undefined){
-          storage.writeUser(responseLoginModel.Data.User);
-          storage.writeJwtToken(responseLoginModel.Data.Token);
-          storage.writeUserPrefs(responseLoginModel.Data.User.userPrefs? responseLoginModel.Data.User.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false});
-          this.props.isLoggedCallback(true);
-          this.setState({ isLogged: true});
-        }
-        else{
-          log.dev('login', responseLoginModel);
-          log.pop(responseLoginModel.Message);
-        }
-      }
-      else{
-        log.dev('login', response);
-        log.pop('Response of login was undefined or null.');
+      if(data && data.User && data.Token) {
+        storage.writeUser(data.User);
+        storage.writeJwtToken(data.Token);
+        storage.writeUserPrefs(data.User.userPrefs? data.User.userPrefs:{hideQuantity: false, shouldCreateNewItemWhenCreateNewCategory: false, showOnlyItemText: false, theme: 'dark'});
+        this.props.isLoggedCallback(true);
+        this.setState({ isLogged: true});
       }
     } 
     catch (err) {
-      log.err('login', err);
-      log.pop(`Login response "catch" error.`);
+      log.err(JSON.stringify(err));
     }
     setTimeout(() => {
       this.setState({ isLogging: false });
@@ -131,24 +110,25 @@ class Login extends React.Component<P, S>{
   }
 
   render(): React.ReactNode {
+    const { theme } = this.props;
     const { isLogged, isLogging } = this.state;
     
     return(
-      <View style={styles.loggingContainer}>
+      <View style={styles(theme).loggingContainer}>
         {isLogged?
-        <UserView logout={this.logout} userPrefsChanged={this.props.userPrefsChanged}></UserView>
+        <UserView theme={theme} logout={this.logout} userPrefsChanged={this.props.userPrefsChanged}></UserView>
         :
         <React.Fragment>
-          <Text style={styles.grocerylistText}>
+          <Text style={styles(theme).grocerylistText}>
             GROCERY LIST
           </Text>
-          <TextInput placeholder="Email" placeholderTextColor={colors.placeholderTextColor} style={styles.emailpassword} onChangeText={this.handleEmailChange}></TextInput>
-          <TextInput placeholder="Password" placeholderTextColor={colors.placeholderTextColor} style={styles.emailpassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
+          <TextInput placeholder="Email" placeholderTextColor={theme.textcolor} style={styles(theme).emailpassword} onChangeText={this.handleEmailChange}></TextInput>
+          <TextInput placeholder="Password" placeholderTextColor={theme.textcolor} style={styles(theme).emailpassword} secureTextEntry={true} onChangeText={this.handlePasswordChange}></TextInput>
           {isLogging?
-          <Loading style={{width: 30, height: 30, margin: 10}}></Loading>
+          <Loading theme={theme} style={{width: 30, height: 30, margin: 10}}></Loading>
           :
-          <Pressable style={styles.loginButton} onPress={this.login}>
-            <Text style={styles.loginButtonText}>Login</Text>
+          <Pressable style={styles(theme).loginButton} onPress={this.login}>
+            <Text style={styles(theme).loginButtonText}>Login</Text>
           </Pressable>}
         </React.Fragment>
         }
@@ -157,7 +137,7 @@ class Login extends React.Component<P, S>{
   }
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ThemePalette) => StyleSheet.create({
   loggingContainer:{
     flex: 1,
     flexDirection: "column",
@@ -168,12 +148,12 @@ const styles = StyleSheet.create({
     fontSize: 25,
     marginBottom: 30,
     width: '90%',
-    color: colors.beige,
+    color: theme.textcolor,
     textAlign: 'center',
   },
   baseUrlText: {
     width: '85%',
-    color: colors.beige,
+    color: theme.textcolor,
     padding: 10,
   },
   baseUrlDoneCancelImage: {
@@ -201,8 +181,8 @@ const styles = StyleSheet.create({
   emailpassword: {
     width: '90%',
     margin: 10,
-    color: colors.beige,
-    backgroundColor: colors.blue,
+    color: theme.textcolor,
+    backgroundColor: theme.backgroundcolor,
     borderStyle: 'solid',
     borderWidth: 1,
     borderColor: 'grey',
@@ -215,8 +195,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '90%',
     margin: 10,
-    color: colors.beige,
-    backgroundColor: colors.bluelight,
+    color: theme.textcolor,
+    backgroundColor: theme.loginbuttonbk,
     padding: 10
   },
   loginButtonText: {
